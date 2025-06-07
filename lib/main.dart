@@ -1,6 +1,7 @@
 // lib/main.dart - Actualizado con navegación completa
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:prueba/presentation/pages/cart/cart_page.dart';
 import 'package:prueba/presentation/pages/catalog/catalog_page.dart';
 import 'package:prueba/presentation/providers/payment_provider.dart';
@@ -18,6 +19,8 @@ import 'presentation/pages/home/main_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await _initializeStripe();
   
   // Configurar la barra de estado
   SystemChrome.setSystemUIOverlayStyle(
@@ -37,6 +40,13 @@ void main() async {
   ]);
 
   runApp(const TiendaVirtualApp());
+}
+
+Future<void> _initializeStripe() async {
+  // Configurar Stripe con tu clave pública
+  // IMPORTANTE: Esta debe ser tu clave PÚBLICA (pk_test_...), no la secreta (sk_...)
+  Stripe.publishableKey = 'pk_test_51RTUBMHIj82SmGbDobq1uVtN5RTTtJbmY81CiBDmxgDzIEDe1QB7NooKByfJnQGL3uUTKPiVkYxNeCcBID4vua9R00lSQRU395';
+
 }
 
 class TiendaVirtualApp extends StatelessWidget {
