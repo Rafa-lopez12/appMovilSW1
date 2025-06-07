@@ -1,3 +1,4 @@
+// lib/presentation/pages/payment/payment_page.dart - ACTUALIZADO
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:animate_do/animate_do.dart';
@@ -7,10 +8,10 @@ import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/responsive_utils.dart';
 import '../../widgets/common/custom_button.dart';
-import '../../widgets/payment/payment_form_widget.dart';
+import '../../widgets/payment/stripe_card_field_widget.dart';
 import '../../widgets/payment/payment_method_card.dart';
 import '../../widgets/cart/cart_summary_widget.dart';
-import '../../providers/payment_provider.dart';
+import '../../providers/payment_provider.dart'; // Importar PaymentType desde aquí
 import '../../providers/cart_provider.dart';
 import 'payment_success_page.dart';
 
@@ -30,21 +31,18 @@ class PaymentPage extends StatefulWidget {
 
 class _PaymentPageState extends State<PaymentPage> 
     with TickerProviderStateMixin {
-  late TabController _tabController;
-  PaymentType _selectedPaymentType = PaymentType.stripe;
-  Map<String, String> _cardFormData = {};
-  bool _cardFormValid = false;
+  PaymentType _selectedPaymentType = PaymentType.stripe; // Usar el enum del provider
+  bool _stripeCardValid = false;
+  bool _isProcessingPayment = false;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
+    // Inicializar Stripe
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final paymentProvider = Provider.of<PaymentProvider>(context, listen: false);
+      paymentProvider.initializeStripe();
+    });
   }
 
   @override
@@ -54,8 +52,9 @@ class _PaymentPageState extends State<PaymentPage>
       appBar: _buildAppBar(),
       body: Consumer<PaymentProvider>(
         builder: (context, paymentProvider, child) {
-          if (paymentProvider.paymentStatus == PaymentStatus.loading) {
-            return _buildLoadingState();
+          // Si está procesando, mostrar pantalla de carga
+          if (_isProcessingPayment || paymentProvider.paymentStatus == PaymentStatus.loading) {
+            return _buildProcessingState();
           }
 
           return Column(
@@ -101,33 +100,76 @@ class _PaymentPageState extends State<PaymentPage>
     );
   }
 
-  Widget _buildLoadingState() {
+  Widget _buildProcessingState() {
     return Center(
       child: FadeIn(
         duration: const Duration(milliseconds: 600),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+            // Animated loading indicator
+            SizedBox(
+              width: 80,
+              height: 80,
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                strokeWidth: 6,
+              ),
             ),
-            const SizedBox(height: 24),
+            
+            const SizedBox(height: 32),
+            
             Text(
               'Procesando pago...',
               style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
                 color: AppColors.textPrimary,
               ),
             ),
+            
             const SizedBox(height: 8),
+            
             Text(
-              'Por favor espera mientras procesamos tu pago',
+              'Por favor espera mientras procesamos tu pago de forma segura',
               style: TextStyle(
                 fontSize: 14,
                 color: AppColors.textSecondary,
               ),
               textAlign: TextAlign.center,
+            ),
+            
+            const SizedBox(height: 24),
+            
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.info.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppColors.info.withOpacity(0.3),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    IconlyBold.shield_done,
+                    size: 20,
+                    color: AppColors.info,
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Transacción protegida con SSL',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.info,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -147,17 +189,17 @@ class _PaymentPageState extends State<PaymentPage>
             Text(
               'Selecciona tu método de pago',
               style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
                 color: AppColors.textPrimary,
               ),
             ),
             const SizedBox(height: 16),
             
-            // Stripe Payment
+            // Stripe Payment (Tarjeta)
             PaymentMethodCard(
-              title: 'Tarjeta de crédito/débito',
-              description: 'Visa, Mastercard, American Express',
+              title: 'Pagar con tarjeta',
+              description: 'Visa, Mastercard, American Express - Procesado por Stripe',
               icon: IconlyLight.wallet,
               isSelected: _selectedPaymentType == PaymentType.stripe,
               onTap: () {
@@ -169,11 +211,11 @@ class _PaymentPageState extends State<PaymentPage>
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _buildCardBrandIcon('visa'),
+                  _buildCardBrandIcon('VISA'),
                   const SizedBox(width: 4),
-                  _buildCardBrandIcon('mastercard'),
+                  _buildCardBrandIcon('MC'),
                   const SizedBox(width: 4),
-                  _buildCardBrandIcon('amex'),
+                  _buildCardBrandIcon('AMEX'),
                 ],
               ),
             ),
@@ -181,7 +223,7 @@ class _PaymentPageState extends State<PaymentPage>
             // Direct Payment
             PaymentMethodCard(
               title: 'Pago directo',
-              description: 'Checkout rápido sin tarjeta',
+              description: 'Checkout rápido sin introducir datos de tarjeta',
               icon: IconlyLight.arrow_right,
               isSelected: _selectedPaymentType == PaymentType.direct,
               onTap: () {
@@ -199,11 +241,11 @@ class _PaymentPageState extends State<PaymentPage>
 
   Widget _buildCardBrandIcon(String brand) {
     return Container(
-      width: 24,
-      height: 16,
+      width: 28,
+      height: 18,
       decoration: BoxDecoration(
         color: AppColors.background,
-        borderRadius: BorderRadius.circular(2),
+        borderRadius: BorderRadius.circular(3),
         border: Border.all(
           color: AppColors.border,
           width: 0.5,
@@ -211,10 +253,11 @@ class _PaymentPageState extends State<PaymentPage>
       ),
       child: Center(
         child: Text(
-          brand.toUpperCase(),
+          brand,
           style: const TextStyle(
-            fontSize: 6,
+            fontSize: 7,
             fontWeight: FontWeight.bold,
+            color: AppColors.textSecondary,
           ),
         ),
       ),
@@ -228,6 +271,8 @@ class _PaymentPageState extends State<PaymentPage>
         padding: EdgeInsets.all(ResponsiveUtils.getHorizontalPadding(context)),
         child: Column(
           children: [
+            const SizedBox(height: 20),
+            
             // Payment form based on selected method
             if (_selectedPaymentType == PaymentType.stripe)
               _buildStripePaymentForm()
@@ -244,6 +289,12 @@ class _PaymentPageState extends State<PaymentPage>
             // Order summary
             _buildOrderSummary(),
             
+            // Error display
+            if (paymentProvider.hasError) ...[
+              const SizedBox(height: 20),
+              _buildErrorWidget(paymentProvider.errorMessage!),
+            ],
+            
             const SizedBox(height: 100), // Space for bottom bar
           ],
         ),
@@ -252,20 +303,67 @@ class _PaymentPageState extends State<PaymentPage>
   }
 
   Widget _buildStripePaymentForm() {
-    return PaymentFormWidget(
-      onFormValid: (formData) {
-        setState(() {
-          _cardFormData = formData;
-          _cardFormValid = true;
-        });
-      },
-      enabled: true,
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.border,
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                IconlyBold.wallet,
+                size: 24,
+                color: AppColors.primary,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Información de la tarjeta',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 20),
+          
+          // Stripe Card Field Widget
+          StripeCardFieldWidget(
+            onValidityChanged: (isValid) {
+              setState(() {
+                _stripeCardValid = isValid;
+              });
+            },
+            onCardChanged: (cardDetails) {
+              // Comentario
+            },
+            enabled: !_isProcessingPayment,
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildDirectPaymentInfo() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -281,28 +379,70 @@ class _PaymentPageState extends State<PaymentPage>
       ),
       child: Column(
         children: [
-          Icon(
-            IconlyBold.tick_square,
-            size: 48,
-            color: AppColors.success,
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: AppColors.success,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              IconlyBold.tick_square,
+              size: 40,
+              color: Colors.white,
+            ),
           ),
-          const SizedBox(height: 16),
+          
+          const SizedBox(height: 20),
+          
           Text(
             'Pago directo rápido',
             style: TextStyle(
-              fontSize: 18,
+              fontSize: 20,
               fontWeight: FontWeight.bold,
               color: AppColors.success,
             ),
           ),
-          const SizedBox(height: 8),
+          
+          const SizedBox(height: 12),
+          
           Text(
-            'Tu orden será procesada directamente sin necesidad de ingresar datos de tarjeta. Es rápido y seguro.',
+            'Tu orden será procesada directamente sin necesidad de ingresar datos de tarjeta. Es la forma más rápida y segura de completar tu compra.',
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 15,
               color: AppColors.textSecondary,
+              height: 1.5,
             ),
             textAlign: TextAlign.center,
+          ),
+          
+          const SizedBox(height: 16),
+          
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.8),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  IconlyBold.time_circle,
+                  size: 16,
+                  color: AppColors.success,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Procesamiento instantáneo',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.success,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -335,15 +475,16 @@ class _PaymentPageState extends State<PaymentPage>
                 Text(
                   'Pago 100% seguro',
                   style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
                     color: AppColors.textPrimary,
                   ),
                 ),
+                const SizedBox(height: 4),
                 Text(
-                  'Tus datos están protegidos con encriptación SSL',
+                  'Protegido por Stripe con encriptación SSL y cumplimiento PCI DSS',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 13,
                     color: AppColors.textSecondary,
                   ),
                 ),
@@ -366,6 +507,43 @@ class _PaymentPageState extends State<PaymentPage>
           itemCount: cartProvider.itemCount,
         );
       },
+    );
+  }
+
+  Widget _buildErrorWidget(String error) {
+    return FadeIn(
+      duration: const Duration(milliseconds: 300),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.error.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: AppColors.error.withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              IconlyLight.info_circle,
+              size: 20,
+              color: AppColors.error,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                error,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: AppColors.error,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -399,15 +577,15 @@ class _PaymentPageState extends State<PaymentPage>
                 Text(
                   'Total a pagar',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 18,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textPrimary,
                   ),
                 ),
                 Text(
-                  '\${widget.totalAmount.toStringAsFixed(2)}',
+                  '\$${widget.totalAmount.toStringAsFixed(2)}',
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: 24,
                     fontWeight: FontWeight.bold,
                     color: AppColors.primary,
                   ),
@@ -415,7 +593,7 @@ class _PaymentPageState extends State<PaymentPage>
               ],
             ),
             
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             
             // Pay button
             CustomButton(
@@ -423,45 +601,10 @@ class _PaymentPageState extends State<PaymentPage>
               onPressed: _canProcessPayment(paymentProvider) 
                   ? () => _processPayment(paymentProvider)
                   : null,
-              isLoading: paymentProvider.isProcessing,
+              isLoading: _isProcessingPayment || paymentProvider.isProcessing,
               icon: IconlyLight.arrow_right,
               size: ButtonSize.large,
             ),
-            
-            // Error message
-            if (paymentProvider.hasError) ...[
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.error.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: AppColors.error.withOpacity(0.3),
-                    width: 1,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      IconlyLight.info_circle,
-                      size: 16,
-                      color: AppColors.error,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        paymentProvider.errorMessage!,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.error,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
           ],
         ),
       ),
@@ -471,24 +614,30 @@ class _PaymentPageState extends State<PaymentPage>
   String _getPayButtonText() {
     switch (_selectedPaymentType) {
       case PaymentType.stripe:
-        return 'Pagar con tarjeta';
+        return 'Pagar con Stripe (\$${widget.totalAmount.toStringAsFixed(2)})';
       case PaymentType.direct:
-        return 'Procesar pago directo';
+        return 'Procesar pago directo (\$${widget.totalAmount.toStringAsFixed(2)})';
     }
   }
 
   bool _canProcessPayment(PaymentProvider paymentProvider) {
-    if (paymentProvider.isProcessing) return false;
+    if (_isProcessingPayment || paymentProvider.isProcessing) return false;
     
     switch (_selectedPaymentType) {
       case PaymentType.stripe:
-        return _cardFormValid;
+        return _stripeCardValid;
       case PaymentType.direct:
         return true;
     }
   }
 
   Future<void> _processPayment(PaymentProvider paymentProvider) async {
+    if (!_canProcessPayment(paymentProvider)) return;
+    
+    setState(() {
+      _isProcessingPayment = true;
+    });
+
     HapticFeedback.lightImpact();
     
     try {
@@ -496,14 +645,8 @@ class _PaymentPageState extends State<PaymentPage>
       
       switch (_selectedPaymentType) {
         case PaymentType.stripe:
-          // Create payment intent first
-          if (paymentProvider.stripePaymentIntent == null) {
-            await paymentProvider.createPaymentFromCart();
-          }
-          
-          if (paymentProvider.stripePaymentIntent != null) {
-            success = await paymentProvider.confirmStripePayment();
-          }
+          // Usar el método completo de Stripe que maneja todo el flujo
+          success = await paymentProvider.processCompleteStripePayment();
           break;
           
         case PaymentType.direct:
@@ -523,20 +666,45 @@ class _PaymentPageState extends State<PaymentPage>
             builder: (context) => PaymentSuccessPage(
               orderId: paymentProvider.lastOrderId ?? 'N/A',
               amount: paymentProvider.lastPurchaseAmount ?? widget.totalAmount,
-              paymentMethod: _selectedPaymentType == PaymentType.stripe ? 'Tarjeta' : 'Directo',
+              paymentMethod: _selectedPaymentType == PaymentType.stripe ? 'Stripe' : 'Directo',
             ),
           ),
         );
+      } else if (mounted) {
+        // Handle specific error cases
+        if (paymentProvider.wasPaymentCanceled) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Pago cancelado por el usuario'),
+              backgroundColor: AppColors.warning,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(paymentProvider.errorMessage ?? 'Error procesando pago'),
+              backgroundColor: AppColors.error,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
       }
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error procesando pago: $error'),
+            content: Text('Error inesperado: $error'),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
           ),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProcessingPayment = false;
+        });
       }
     }
   }

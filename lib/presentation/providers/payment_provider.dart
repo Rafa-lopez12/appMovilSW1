@@ -1,4 +1,4 @@
-// lib/presentation/providers/payment_provider.dart
+// lib/presentation/providers/payment_provider.dart - CORREGIDO
 import 'package:flutter/foundation.dart';
 import 'package:prueba/core/services/payment_service.dart';
 
@@ -19,7 +19,7 @@ class PaymentProvider extends ChangeNotifier {
   // Datos de Stripe
   StripePaymentIntent? _stripePaymentIntent;
   PaymentConfirmation? _paymentConfirmation;
-  CompletePaymentResult? _stripeCompleteResult; // NUEVO
+  CompletePaymentResult? _stripeCompleteResult;
   
   // Datos de compra directa
   DirectPurchaseResult? _directPurchaseResult;
@@ -32,7 +32,7 @@ class PaymentProvider extends ChangeNotifier {
   Map<String, dynamic> _shippingData = {};
   Map<String, dynamic> _billingData = {};
 
-  // Getters existentes...
+  // Getters principales
   PaymentStatus get paymentStatus => _paymentStatus;
   PaymentType get selectedPaymentType => _selectedPaymentType;
   CheckoutStep get currentStep => _currentStep;
@@ -43,7 +43,7 @@ class PaymentProvider extends ChangeNotifier {
   StripePaymentIntent? get stripePaymentIntent => _stripePaymentIntent;
   PaymentConfirmation? get paymentConfirmation => _paymentConfirmation;
   DirectPurchaseResult? get directPurchaseResult => _directPurchaseResult;
-  CompletePaymentResult? get stripeCompleteResult => _stripeCompleteResult; // NUEVO
+  CompletePaymentResult? get stripeCompleteResult => _stripeCompleteResult;
   
   List<PaymentHistory> get paymentHistory => [..._paymentHistory];
   List<OrderHistory> get orderHistory => [..._orderHistory];
@@ -51,13 +51,13 @@ class PaymentProvider extends ChangeNotifier {
   Map<String, dynamic> get shippingData => {..._shippingData};
   Map<String, dynamic> get billingData => {..._billingData};
 
-  // Estado de checkout existente...
+  // Estado de checkout
   bool get canProceedToShipping => _currentStep == CheckoutStep.cart;
   bool get canProceedToPayment => _currentStep == CheckoutStep.shipping && _shippingData.isNotEmpty;
   bool get canProcessPayment => _currentStep == CheckoutStep.payment;
   bool get isCheckoutComplete => _paymentStatus == PaymentStatus.success;
 
-  // NAVEGACIÓN DEL CHECKOUT (mantener métodos existentes)
+  // NAVEGACIÓN DEL CHECKOUT
 
   void setCheckoutStep(CheckoutStep step) {
     _currentStep = step;
@@ -105,14 +105,14 @@ class PaymentProvider extends ChangeNotifier {
     _stripePaymentIntent = null;
     _paymentConfirmation = null;
     _directPurchaseResult = null;
-    _stripeCompleteResult = null; // NUEVO
+    _stripeCompleteResult = null;
     _shippingData.clear();
     _billingData.clear();
     _clearError();
     notifyListeners();
   }
 
-  // CONFIGURACIÓN DE DATOS (mantener métodos existentes)
+  // CONFIGURACIÓN DE DATOS
 
   void setPaymentType(PaymentType type) {
     _selectedPaymentType = type;
@@ -129,9 +129,9 @@ class PaymentProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // MÉTODOS DE PAGO MEJORADOS
+  // MÉTODOS DE PAGO PRINCIPALES
 
-  // 1. CREAR PAYMENT INTENT DESDE CARRITO (mantener)
+  // 1. CREAR PAYMENT INTENT DESDE CARRITO
   Future<void> createPaymentFromCart() async {
     _setProcessing(true);
     _setPaymentStatus(PaymentStatus.loading);
@@ -154,7 +154,7 @@ class PaymentProvider extends ChangeNotifier {
     }
   }
 
-  // 2. CREAR PAYMENT INTENT PERSONALIZADO (mantener)
+  // 2. CREAR PAYMENT INTENT PERSONALIZADO
   Future<void> createCustomPaymentIntent({
     required double amount,
     String currency = 'usd',
@@ -187,7 +187,7 @@ class PaymentProvider extends ChangeNotifier {
     }
   }
 
-  // 3. NUEVO: PROCESAR PAGO COMPLETO CON STRIPE (método principal)
+  // 3. PROCESAR PAGO COMPLETO CON STRIPE (método principal)
   Future<bool> processCompleteStripePayment({
     StripePaymentIntent? existingIntent,
     double? amount,
@@ -240,12 +240,12 @@ class PaymentProvider extends ChangeNotifier {
     }
   }
 
-  // 4. PROCESAR PAGO DESDE CARRITO CON STRIPE (método de conveniencia)
+  // 4. PROCESAR PAGO DESDE CARRITO CON STRIPE
   Future<bool> processCartPaymentWithStripe() async {
     return await processCompleteStripePayment();
   }
 
-  // 5. CONFIRMAR PAGO CON STRIPE (mantener para compatibilidad)
+  // 5. CONFIRMAR PAGO CON STRIPE (para compatibilidad)
   Future<bool> confirmStripePayment({String? paymentMethodId}) async {
     if (_stripePaymentIntent == null) {
       _handleError('No hay payment intent activo');
@@ -290,7 +290,7 @@ class PaymentProvider extends ChangeNotifier {
     }
   }
 
-  // 6. COMPRA DIRECTA (sin Stripe) - mantener
+  // 6. COMPRA DIRECTA (sin Stripe)
   Future<bool> processDirectPurchase() async {
     _setProcessing(true);
     _setPaymentStatus(PaymentStatus.loading);
@@ -317,7 +317,7 @@ class PaymentProvider extends ChangeNotifier {
     }
   }
 
-  // 7. CHECKOUT COMPLETO MEJORADO (método principal para UI)
+  // 7. CHECKOUT COMPLETO (método principal para UI)
   Future<bool> processCheckout() async {
     switch (_selectedPaymentType) {
       case PaymentType.stripe:
@@ -328,7 +328,7 @@ class PaymentProvider extends ChangeNotifier {
     }
   }
 
-  // 8. INICIALIZAR STRIPE (llamar en initState de widgets)
+  // 8. INICIALIZAR STRIPE
   void initializeStripe() {
     try {
       PaymentService.initializeStripe();
@@ -339,7 +339,7 @@ class PaymentProvider extends ChangeNotifier {
     }
   }
 
-  // MÉTODOS DE HISTORIAL (mantener todos los existentes)
+  // MÉTODOS DE HISTORIAL
 
   Future<void> loadPaymentHistory() async {
     _setProcessing(true);
@@ -389,7 +389,7 @@ class PaymentProvider extends ChangeNotifier {
     }
   }
 
-  // UTILIDADES MEJORADAS
+  // UTILIDADES
 
   String getPaymentStatusText() {
     switch (_paymentStatus) {
@@ -441,7 +441,7 @@ class PaymentProvider extends ChangeNotifier {
     );
   }
 
-  // MÉTODOS DE ESTADO INTERNO (mantener todos)
+  // MÉTODOS DE ESTADO INTERNO
 
   void _setProcessing(bool processing) {
     _isProcessing = processing;
@@ -474,7 +474,7 @@ class PaymentProvider extends ChangeNotifier {
     _stripePaymentIntent = null;
     _paymentConfirmation = null;
     _directPurchaseResult = null;
-    _stripeCompleteResult = null; // NUEVO
+    _stripeCompleteResult = null;
     _paymentStatus = PaymentStatus.idle;
     _clearError();
     notifyListeners();
@@ -484,7 +484,7 @@ class PaymentProvider extends ChangeNotifier {
     _stripePaymentIntent = null;
     _paymentConfirmation = null;
     _directPurchaseResult = null;
-    _stripeCompleteResult = null; // NUEVO
+    _stripeCompleteResult = null;
     _paymentHistory.clear();
     _orderHistory.clear();
     _shippingData.clear();
@@ -497,7 +497,7 @@ class PaymentProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // VALIDACIONES MEJORADAS
+  // VALIDACIONES
 
   bool canStartCheckout() {
     return !_isProcessing && _paymentStatus != PaymentStatus.loading;
@@ -521,10 +521,9 @@ class PaymentProvider extends ChangeNotifier {
            _selectedPaymentType == PaymentType.stripe;
   }
 
-  // GETTERS DE CONVENIENCIA MEJORADOS
+  // GETTERS DE CONVENIENCIA
 
   String? get lastOrderId {
-    // Priorizar resultado completo de Stripe
     if (_stripeCompleteResult != null && _stripeCompleteResult!.success) {
       return _stripeCompleteResult!.orderId;
     }
@@ -577,7 +576,7 @@ class PaymentProvider extends ChangeNotifier {
            false;
   }
 
-  // MÉTODOS PARA TESTING Y DESARROLLO (mantener todos existentes)
+  // MÉTODOS PARA TESTING
 
   void simulatePaymentSuccess() {
     if (kDebugMode) {
@@ -615,24 +614,7 @@ class PaymentProvider extends ChangeNotifier {
     }
   }
 
-  void simulateDirectPurchase() {
-    if (kDebugMode) {
-      _directPurchaseResult = DirectPurchaseResult(
-        id: 'test-compra-${DateTime.now().millisecondsSinceEpoch}',
-        fechaVenta: DateTime.now(),
-        cliente: 'Usuario Test',
-        subtotal: 85.50,
-        total: 100.00,
-        estado: 'completada',
-        cantidadItems: 3,
-        message: 'Compra directa simulada exitosa',
-      );
-      _setPaymentStatus(PaymentStatus.success);
-      _currentStep = CheckoutStep.confirmation;
-    }
-  }
-
-  // MÉTODOS PARA DEBUGGING MEJORADOS
+  // DEBUGGING
 
   void printCurrentState() {
     if (kDebugMode) {
@@ -650,9 +632,6 @@ class PaymentProvider extends ChangeNotifier {
       debugPrint('Last Order ID: $lastOrderId');
       debugPrint('Was Canceled: $wasPaymentCanceled');
       debugPrint('Requires Action: $requiresPaymentAction');
-      debugPrint('Shipping Data Valid: ${isShippingDataValid()}');
-      debugPrint('Can Start Checkout: ${canStartCheckout()}');
-      debugPrint('Can Process Stripe: ${canProcessStripePayment()}');
       debugPrint('===============================');
     }
   }
