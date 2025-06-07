@@ -1,11 +1,18 @@
 // lib/core/services/payment_service.dart
 import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter_stripe/flutter_stripe.dart';
 import '../constants/api_constants.dart';
 import 'auth_service.dart';
 
 class PaymentService {
   final AuthService _authService = AuthService();
+
+  // Inicializar Stripe
+  static void initializeStripe() {
+    Stripe.publishableKey = 'pk_test_51RTUBMHIj82SmGbDobq1uVtN5RTTtJbmY81CiBDmxgDzIEDe1QB7NooKByfJnQGL3uUTKPiVkYxNeCcBID4vua9R00lSQRU395'; // Configura tu clave pública
+  }
 
   // Headers base para las peticiones
   Future<Map<String, String>> _getHeaders() async {
@@ -25,8 +32,8 @@ class PaymentService {
         headers: await _getHeaders(),
       );
 
-      print('Create Payment from Cart Status: ${response.statusCode}');
-      print('Create Payment from Cart Body: ${response.body}');
+      debugPrint('Create Payment from Cart Status: ${response.statusCode}');
+      debugPrint('Create Payment from Cart Body: ${response.body}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = json.decode(response.body);
@@ -40,7 +47,7 @@ class PaymentService {
       }
     } catch (e) {
       if (e is PaymentException) rethrow;
-      print('Create Payment from Cart Error: $e');
+      debugPrint('Create Payment from Cart Error: $e');
       throw PaymentException('Error de conexión: ${e.toString()}');
     }
   }
@@ -66,8 +73,8 @@ class PaymentService {
         }),
       );
 
-      print('Create Payment Intent Status: ${response.statusCode}');
-      print('Create Payment Intent Body: ${response.body}');
+      debugPrint('Create Payment Intent Status: ${response.statusCode}');
+      debugPrint('Create Payment Intent Body: ${response.body}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = json.decode(response.body);
@@ -81,12 +88,147 @@ class PaymentService {
       }
     } catch (e) {
       if (e is PaymentException) rethrow;
-      print('Create Payment Intent Error: $e');
+      debugPrint('Create Payment Intent Error: $e');
       throw PaymentException('Error de conexión: ${e.toString()}');
     }
   }
 
-  // 3. CONFIRMAR PAGO
+  // 3. INICIALIZAR PAYMENT SHEET DE STRIPE
+  Future<void> initializePaymentSheet(StripePaymentIntent paymentIntent) async {
+    try {
+      await Stripe.instance.initPaymentSheet(
+        paymentSheetParameters: SetupPaymentSheetParameters(
+          paymentIntentClientSecret: paymentIntent.clientSecret,
+          merchantDisplayName: "Tu Tienda Virtual",
+          customerId: paymentIntent.customerId.isNotEmpty ? paymentIntent.customerId : null,
+          style: ThemeMode.system,
+          // Opcional: configurar billing details
+          billingDetails: const BillingDetails(
+            // address: Address(...), // Si tienes datos de dirección
+          ),
+          // Habilitar Apple Pay / Google Pay si está disponible
+          applePay: const PaymentSheetApplePay(
+            merchantCountryCode: 'US', // Cambia según tu país
+          ),
+          googlePay: const PaymentSheetGooglePay(
+            merchantCountryCode: 'US', // Cambia según tu país
+            testEnv: true, // Cambiar a false en producción
+          ),
+        ),
+      );
+    } catch (e) {
+      throw PaymentException('Error inicializando Stripe: $e');
+    }
+  }
+
+  // 4. PRESENTAR PAYMENT SHEET DE STRIPE
+  Future<StripePaymentResult> presentPaymentSheet() async {
+    try {
+      await Stripe.instance.presentPaymentSheet();
+      return StripePaymentResult(
+        status: StripePaymentStatus.success,
+        message: 'Pago completado en Stripe',
+      );
+    } catch (e) {
+      if (e is StripeException) {
+        switch (e.error.code) {
+          case FailureCode.Canceled:
+            return StripePaymentResult(
+              status: StripePaymentStatus.canceled,
+              message: 'Pago cancelado por el usuario',
+            );
+          case FailureCode.Failed:
+            return StripePaymentResult(
+              status: StripePaymentStatus.failed,
+              message: 'Error en el pago: ${e.error.message}',
+            );
+          default:
+            return StripePaymentResult(
+              status: StripePaymentStatus.failed,
+              message: 'Error desconocido: ${e.error.message}',
+            );
+        }
+      }
+      return StripePaymentResult(
+        status: StripePaymentStatus.failed,
+        message: 'Error inesperado: $e',
+      );
+    }
+  }
+
+  // 5. WORKFLOW COMPLETO DE STRIPE
+  Future<CompletePaymentResult> processStripePayment({
+    StripePaymentIntent? existingIntent,
+    double? amount,
+    List<PaymentItem>? items,
+    String? description,
+    Map<String, dynamic>? metadata,
+  }) async {
+    try {
+      // 1. Crear o usar Payment Intent existente
+      StripePaymentIntent paymentIntent;
+      if (existingIntent != null) {
+        paymentIntent = existingIntent;
+      } else if (amount != null) {
+        paymentIntent = await createPaymentIntent(
+          amount: amount,
+          items: items,
+          description: description,
+          metadata: metadata,
+        );
+      } else {
+        paymentIntent = await createPaymentFromCart();
+      }
+
+      // 2. Inicializar Payment Sheet
+      await initializePaymentSheet(paymentIntent);
+
+      // 3. Presentar UI de pago
+      final stripeResult = await presentPaymentSheet();
+
+      if (stripeResult.status != StripePaymentStatus.success) {
+        return CompletePaymentResult(
+          success: false,
+          message: stripeResult.message,
+          canceled: stripeResult.status == StripePaymentStatus.canceled,
+        );
+      }
+
+      // 4. Confirmar en el backend
+      final confirmation = await confirmPayment(
+        paymentIntentId: paymentIntent.paymentIntentId,
+      );
+
+      if (confirmation.isSuccessful) {
+        return CompletePaymentResult(
+          success: true,
+          message: confirmation.message,
+          paymentIntentId: paymentIntent.paymentIntentId,
+          orderId: confirmation.ventaId,
+          receiptUrl: confirmation.receiptUrl,
+        );
+      } else {
+        return CompletePaymentResult(
+          success: false,
+          message: confirmation.message,
+          requiresAction: confirmation.requiresAction,
+        );
+      }
+
+    } on PaymentException catch (e) {
+      return CompletePaymentResult(
+        success: false,
+        message: e.message,
+      );
+    } catch (e) {
+      return CompletePaymentResult(
+        success: false,
+        message: 'Error procesando pago: $e',
+      );
+    }
+  }
+
+  // 6. CONFIRMAR PAGO EN BACKEND
   Future<PaymentConfirmation> confirmPayment({
     required String paymentIntentId,
     String? paymentMethodId,
@@ -101,8 +243,8 @@ class PaymentService {
         }),
       );
 
-      print('Confirm Payment Status: ${response.statusCode}');
-      print('Confirm Payment Body: ${response.body}');
+      debugPrint('Confirm Payment Status: ${response.statusCode}');
+      debugPrint('Confirm Payment Body: ${response.body}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = json.decode(response.body);
@@ -116,12 +258,12 @@ class PaymentService {
       }
     } catch (e) {
       if (e is PaymentException) rethrow;
-      print('Confirm Payment Error: $e');
+      debugPrint('Confirm Payment Error: $e');
       throw PaymentException('Error de conexión: ${e.toString()}');
     }
   }
 
-  // 4. COMPRA DIRECTA (sin Stripe - checkout rápido)
+  // 7. COMPRA DIRECTA (sin Stripe - checkout rápido)
   Future<DirectPurchaseResult> purchaseFromCart() async {
     try {
       final response = await http.post(
@@ -129,8 +271,8 @@ class PaymentService {
         headers: await _getHeaders(),
       );
 
-      print('Direct Purchase Status: ${response.statusCode}');
-      print('Direct Purchase Body: ${response.body}');
+      debugPrint('Direct Purchase Status: ${response.statusCode}');
+      debugPrint('Direct Purchase Body: ${response.body}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = json.decode(response.body);
@@ -144,12 +286,12 @@ class PaymentService {
       }
     } catch (e) {
       if (e is PaymentException) rethrow;
-      print('Direct Purchase Error: $e');
+      debugPrint('Direct Purchase Error: $e');
       throw PaymentException('Error de conexión: ${e.toString()}');
     }
   }
 
-  // 5. HISTORIAL DE PAGOS
+  // 8. HISTORIAL DE PAGOS
   Future<List<PaymentHistory>> getPaymentHistory() async {
     try {
       final response = await http.get(
@@ -157,7 +299,7 @@ class PaymentService {
         headers: await _getHeaders(),
       );
 
-      print('Payment History Status: ${response.statusCode}');
+      debugPrint('Payment History Status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
@@ -171,12 +313,12 @@ class PaymentService {
       }
     } catch (e) {
       if (e is PaymentException) rethrow;
-      print('Payment History Error: $e');
+      debugPrint('Payment History Error: $e');
       throw PaymentException('Error de conexión: ${e.toString()}');
     }
   }
 
-  // 6. OBTENER DETALLES DE PAGO
+  // 9. OBTENER DETALLES DE PAGO
   Future<PaymentDetails> getPaymentDetails(String paymentId) async {
     try {
       final response = await http.get(
@@ -184,7 +326,7 @@ class PaymentService {
         headers: await _getHeaders(),
       );
 
-      print('Payment Details Status: ${response.statusCode}');
+      debugPrint('Payment Details Status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -198,12 +340,12 @@ class PaymentService {
       }
     } catch (e) {
       if (e is PaymentException) rethrow;
-      print('Payment Details Error: $e');
+      debugPrint('Payment Details Error: $e');
       throw PaymentException('Error de conexión: ${e.toString()}');
     }
   }
 
-  // 7. MIS COMPRAS (órdenes/ventas)
+  // 10. MIS COMPRAS (órdenes/ventas)
   Future<List<OrderHistory>> getMyOrders() async {
     try {
       final response = await http.get(
@@ -211,7 +353,7 @@ class PaymentService {
         headers: await _getHeaders(),
       );
 
-      print('My Orders Status: ${response.statusCode}');
+      debugPrint('My Orders Status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
@@ -225,13 +367,32 @@ class PaymentService {
       }
     } catch (e) {
       if (e is PaymentException) rethrow;
-      print('My Orders Error: $e');
+      debugPrint('My Orders Error: $e');
       throw PaymentException('Error de conexión: ${e.toString()}');
+    }
+  }
+
+  // 11. CONVERTIR BOB A USD
+  static double convertBobToUsd(double amountInBob) {
+    const double exchangeRate = 0.145; // 1 BOB = 0.145 USD aproximadamente
+    return amountInBob * exchangeRate;
+  }
+
+  // 12. FORMATEAR AMOUNT PARA STRIPE
+  static int formatAmountForStripe(double amount, String currency) {
+    switch (currency.toUpperCase()) {
+      case 'USD':
+      case 'EUR':
+        return (amount * 100).toInt();
+      case 'JPY':
+        return amount.toInt();
+      default:
+        return (amount * 100).toInt();
     }
   }
 }
 
-// MODELOS DE DATOS
+// MODELOS DE DATOS EXISTENTES (mantener todos)
 
 class StripePaymentIntent {
   final String paymentIntentId;
@@ -263,6 +424,42 @@ class StripePaymentIntent {
 
   double get amountInDollars => amount / 100.0;
 }
+
+// NUEVOS MODELOS PARA STRIPE
+
+enum StripePaymentStatus { success, failed, canceled }
+
+class StripePaymentResult {
+  final StripePaymentStatus status;
+  final String message;
+
+  StripePaymentResult({
+    required this.status,
+    required this.message,
+  });
+}
+
+class CompletePaymentResult {
+  final bool success;
+  final String message;
+  final String? paymentIntentId;
+  final String? orderId;
+  final String? receiptUrl;
+  final bool canceled;
+  final bool requiresAction;
+
+  CompletePaymentResult({
+    required this.success,
+    required this.message,
+    this.paymentIntentId,
+    this.orderId,
+    this.receiptUrl,
+    this.canceled = false,
+    this.requiresAction = false,
+  });
+}
+
+// MANTENER TODOS TUS MODELOS EXISTENTES
 
 class PaymentItem {
   final String productoVariedadId;
