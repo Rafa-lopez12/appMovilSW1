@@ -1,4 +1,4 @@
-// lib/presentation/pages/cart/checkout_page.dart
+// lib/presentation/pages/cart/checkout_page.dart - VERSIÓN CORREGIDA
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:animate_do/animate_do.dart';
@@ -14,7 +14,7 @@ import '../../widgets/common/custom_text_field.dart';
 import '../../widgets/cart/cart_summary_widget.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/auth_provider.dart';
-// import 'order_confirmation_page.dart';
+import '../payment/payment_page.dart';
 
 class CheckoutPage extends StatefulWidget {
   final List<dynamic> cartItems;
@@ -32,17 +32,15 @@ class CheckoutPage extends StatefulWidget {
 
 class _CheckoutPageState extends State<CheckoutPage>
     with TickerProviderStateMixin {
-  late TabController _tabController;
-  late PageController _pageController;
   
+  // 🔧 VARIABLES DE CONTROL CON VALORES POR DEFECTO SEGUROS
   int _currentStep = 0;
   bool _isProcessing = false;
   
   // Form keys
   final _shippingFormKey = GlobalKey<FormState>();
-  final _paymentFormKey = GlobalKey<FormState>();
   
-  // Shipping form controllers
+  // Controllers
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -53,32 +51,63 @@ class _CheckoutPageState extends State<CheckoutPage>
   final _zipCodeController = TextEditingController();
   final _countryController = TextEditingController();
   
-  // Payment form controllers
-  final _cardNumberController = TextEditingController();
-  final _expiryController = TextEditingController();
-  final _cvvController = TextEditingController();
-  final _cardHolderController = TextEditingController();
-  
-  // Options
+  // Shipping options
   String _selectedShippingMethod = 'standard';
-  String _selectedPaymentMethod = 'card';
-  bool _sameAsBilling = true;
-  bool _savePaymentMethod = false;
+  Map<String, dynamic> _shippingData = {};
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-    _pageController = PageController();
     
-    // Pre-fill user data if available
+    // 🔍 VALIDACIONES CRÍTICAS PRIMERO
+    print('=== CHECKOUT INIT DEBUG ===');
+    print('Cart items: ${widget.cartItems.length}');
+    print('Total amount: ${widget.totalAmount}');
+    
+    // 🚨 VALIDAR DATOS ANTES DE CONTINUAR
+    if (!_validateInputData()) {
+      return; // Sale early si hay problemas
+    }
+    
+    // ✅ INICIALIZACIÓN SEGURA
     _prefillUserData();
+  }
+
+  // 🔍 VALIDACIÓN DE DATOS DE ENTRADA
+  bool _validateInputData() {
+    if (widget.cartItems.isEmpty) {
+      print('ERROR: Cart items is empty');
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _navigateBackWithError('El carrito está vacío');
+      });
+      return false;
+    }
+
+    if (widget.totalAmount <= 0) {
+      print('ERROR: Invalid total amount: ${widget.totalAmount}');
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _navigateBackWithError('Total de compra inválido');
+      });
+      return false;
+    }
+
+    return true;
+  }
+
+  void _navigateBackWithError(String message) {
+    Navigator.of(context).pop();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppColors.error,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
-    _pageController.dispose();
+    // Dispose controllers safely
     _firstNameController.dispose();
     _lastNameController.dispose();
     _emailController.dispose();
@@ -88,23 +117,24 @@ class _CheckoutPageState extends State<CheckoutPage>
     _stateController.dispose();
     _zipCodeController.dispose();
     _countryController.dispose();
-    _cardNumberController.dispose();
-    _expiryController.dispose();
-    _cvvController.dispose();
-    _cardHolderController.dispose();
     super.dispose();
   }
 
   void _prefillUserData() {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final user = authProvider.currentUser;
-    
-    if (user != null) {
-      _firstNameController.text = user.firstName;
-      _lastNameController.text = user.lastName;
-      _emailController.text = user.email;
-      _phoneController.text = user.phone ?? '';
-      _addressController.text = user.address ?? '';
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final user = authProvider.currentUser;
+      
+      if (user != null) {
+        _firstNameController.text = user.firstName ?? '';
+        _lastNameController.text = user.lastName ?? '';
+        _emailController.text = user.email ?? '';
+        _phoneController.text = user.phone ?? '';
+        _addressController.text = user.address ?? '';
+        _countryController.text = 'Bolivia'; // Default country
+      }
+    } catch (e) {
+      print('Error prefilling user data: $e');
     }
   }
 
@@ -120,15 +150,7 @@ class _CheckoutPageState extends State<CheckoutPage>
           
           // Content
           Expanded(
-            child: PageView(
-              controller: _pageController,
-              physics: const NeverScrollableScrollPhysics(),
-              children: [
-                _buildShippingStep(),
-                _buildPaymentStep(),
-                _buildReviewStep(),
-              ],
-            ),
+            child: _buildCurrentStep(),
           ),
           
           // Navigation buttons
@@ -164,7 +186,7 @@ class _CheckoutPageState extends State<CheckoutPage>
   }
 
   Widget _buildProgressIndicator() {
-    final steps = ['Envío', 'Pago', 'Revisar'];
+    final steps = ['Envío', 'Revisión', 'Pago'];
     
     return Container(
       padding: const EdgeInsets.all(20),
@@ -242,6 +264,20 @@ class _CheckoutPageState extends State<CheckoutPage>
     );
   }
 
+  Widget _buildCurrentStep() {
+    // 🔧 USAR SWITCH SEGURO EN LUGAR DE PAGEVIEW
+    switch (_currentStep) {
+      case 0:
+        return _buildShippingStep();
+      case 1:
+        return _buildReviewStep();
+      case 2:
+        return _buildPaymentStep();
+      default:
+        return _buildShippingStep(); // Fallback seguro
+    }
+  }
+
   Widget _buildShippingStep() {
     return SingleChildScrollView(
       padding: EdgeInsets.all(
@@ -254,9 +290,7 @@ class _CheckoutPageState extends State<CheckoutPage>
           children: [
             const SizedBox(height: 20),
             
-            // Section title
             _buildSectionTitle('Información de envío'),
-            
             const SizedBox(height: 20),
             
             // Name fields
@@ -345,7 +379,7 @@ class _CheckoutPageState extends State<CheckoutPage>
                 Expanded(
                   child: CustomTextField(
                     controller: _stateController,
-                    labelText: 'Estado/Provincia',
+                    labelText: 'Estado/Departamento',
                     validator: Validators.validateRequired,
                   ),
                 ),
@@ -367,116 +401,7 @@ class _CheckoutPageState extends State<CheckoutPage>
             const SizedBox(height: 16),
             _buildShippingMethods(),
             
-            const SizedBox(height: 100), // Space for navigation buttons
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPaymentStep() {
-    return SingleChildScrollView(
-      padding: EdgeInsets.all(
-        ResponsiveUtils.getHorizontalPadding(context),
-      ),
-      child: Form(
-        key: _paymentFormKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 20),
-            
-            // Payment method selection
-            _buildSectionTitle('Método de pago'),
-            const SizedBox(height: 16),
-            _buildPaymentMethods(),
-            
-            const SizedBox(height: 32),
-            
-            // Card details
-            if (_selectedPaymentMethod == 'card') ...[
-              _buildSectionTitle('Detalles de la tarjeta'),
-              const SizedBox(height: 20),
-              
-              CustomTextField(
-                controller: _cardNumberController,
-                labelText: 'Número de tarjeta',
-                prefixIcon: IconlyLight.wallet,
-                keyboardType: TextInputType.number,
-                validator: Validators.validateCardNumber,
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                  _CardNumberInputFormatter(),
-                ],
-              ),
-              
-              const SizedBox(height: 20),
-              
-              Row(
-                children: [
-                  Expanded(
-                    child: CustomTextField(
-                      controller: _expiryController,
-                      labelText: 'MM/AA',
-                      prefixIcon: IconlyLight.calendar,
-                      keyboardType: TextInputType.number,
-                      validator: Validators.validateExpiryDate,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                        _ExpiryDateInputFormatter(),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: CustomTextField(
-                      controller: _cvvController,
-                      labelText: 'CVV',
-                      prefixIcon: IconlyLight.lock,
-                      keyboardType: TextInputType.number,
-                      validator: Validators.validateCVV,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                        LengthLimitingTextInputFormatter(4),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              
-              const SizedBox(height: 20),
-              
-              CustomTextField(
-                controller: _cardHolderController,
-                labelText: 'Nombre del titular',
-                prefixIcon: IconlyLight.profile,
-                validator: Validators.validateCardHolderName,
-              ),
-              
-              const SizedBox(height: 20),
-              
-              // Save payment method checkbox
-              CheckboxListTile(
-                value: _savePaymentMethod,
-                onChanged: (value) {
-                  setState(() {
-                    _savePaymentMethod = value ?? false;
-                  });
-                },
-                title: Text(
-                  'Guardar método de pago para futuras compras',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                controlAffinity: ListTileControlAffinity.leading,
-                contentPadding: EdgeInsets.zero,
-                activeColor: AppColors.primary,
-              ),
-            ],
-            
-            const SizedBox(height: 100), // Space for navigation buttons
+            const SizedBox(height: 100),
           ],
         ),
       ),
@@ -495,8 +420,8 @@ class _CheckoutPageState extends State<CheckoutPage>
           
           // Order summary
           CheckoutSummaryWidget(
-            subtotal: widget.totalAmount * 0.85, // Mock calculation
-            shipping: 15.0,
+            subtotal: widget.totalAmount * 0.85,
+            shipping: _getShippingCost(),
             tax: widget.totalAmount * 0.15,
             total: widget.totalAmount,
             itemCount: widget.cartItems.length,
@@ -505,7 +430,7 @@ class _CheckoutPageState extends State<CheckoutPage>
           
           const SizedBox(height: 24),
           
-          // Shipping information
+          // Shipping information review
           _buildReviewSection(
             'Información de envío',
             [
@@ -515,27 +440,26 @@ class _CheckoutPageState extends State<CheckoutPage>
               _addressController.text,
               '${_cityController.text}, ${_stateController.text} ${_zipCodeController.text}',
               _countryController.text,
+              'Método: ${_getShippingMethodName()}',
             ],
             onEdit: () => _goToStep(0),
           ),
           
-          const SizedBox(height: 24),
-          
-          // Payment information
-          _buildReviewSection(
-            'Método de pago',
-            [
-              _selectedPaymentMethod == 'card'
-                  ? '**** **** **** ${_cardNumberController.text.replaceAll(' ', '').substring(_cardNumberController.text.replaceAll(' ', '').length - 4)}'
-                  : 'PayPal',
-              if (_selectedPaymentMethod == 'card')
-                _cardHolderController.text,
-            ],
-            onEdit: () => _goToStep(1),
-          ),
-          
-          const SizedBox(height: 100), // Space for navigation buttons
+          const SizedBox(height: 100),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPaymentStep() {
+    // Este paso navega a PaymentPage
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _navigateToPayment();
+    });
+    
+    return Center(
+      child: CircularProgressIndicator(
+        valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
       ),
     );
   }
@@ -567,13 +491,6 @@ class _CheckoutPageState extends State<CheckoutPage>
         'price': 25.0,
         'icon': IconlyLight.time_circle,
       },
-      {
-        'id': 'overnight',
-        'name': 'Envío nocturno',
-        'description': '1 día hábil',
-        'price': 35.0,
-        'icon': IconlyLight.arrow_up,
-      },
     ];
 
     return Column(
@@ -604,9 +521,7 @@ class _CheckoutPageState extends State<CheckoutPage>
                   size: 24,
                   color: isSelected ? AppColors.primary : AppColors.textSecondary,
                 ),
-                
                 const SizedBox(width: 16),
-                
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -619,9 +534,7 @@ class _CheckoutPageState extends State<CheckoutPage>
                           color: isSelected ? AppColors.primary : AppColors.textPrimary,
                         ),
                       ),
-                      
                       const SizedBox(height: 2),
-                      
                       Text(
                         method['description'] as String,
                         style: TextStyle(
@@ -632,104 +545,14 @@ class _CheckoutPageState extends State<CheckoutPage>
                     ],
                   ),
                 ),
-                
                 Text(
-                  (method['price'] as double) == 0 
-                      ? 'Gratis' 
-                      : '\$${(method['price'] as double).toStringAsFixed(2)}',
+                  '\$${(method['price'] as double).toStringAsFixed(2)}',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     color: isSelected ? AppColors.primary : AppColors.textPrimary,
                   ),
                 ),
-              ],
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildPaymentMethods() {
-    final methods = [
-      {
-        'id': 'card',
-        'name': 'Tarjeta de crédito/débito',
-        'description': 'Visa, Mastercard, American Express',
-        'icon': IconlyLight.wallet,
-      },
-      {
-        'id': 'paypal',
-        'name': 'PayPal',
-        'description': 'Paga con tu cuenta de PayPal',
-        'icon': IconlyLight.wallet,
-      },
-    ];
-
-    return Column(
-      children: methods.map((method) {
-        final isSelected = _selectedPaymentMethod == method['id'];
-        
-        return GestureDetector(
-          onTap: () {
-            setState(() {
-              _selectedPaymentMethod = method['id'] as String;
-            });
-          },
-          child: Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: isSelected ? AppColors.primary : AppColors.border,
-                width: isSelected ? 2 : 1,
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  method['icon'] as IconData,
-                  size: 24,
-                  color: isSelected ? AppColors.primary : AppColors.textSecondary,
-                ),
-                
-                const SizedBox(width: 16),
-                
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        method['name'] as String,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: isSelected ? AppColors.primary : AppColors.textPrimary,
-                        ),
-                      ),
-                      
-                      const SizedBox(height: 2),
-                      
-                      Text(
-                        method['description'] as String,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                
-                if (isSelected)
-                  Icon(
-                    IconlyBold.tick_square,
-                    size: 20,
-                    color: AppColors.primary,
-                  ),
               ],
             ),
           ),
@@ -748,10 +571,7 @@ class _CheckoutPageState extends State<CheckoutPage>
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppColors.border,
-          width: 1,
-        ),
+        border: Border.all(color: AppColors.border, width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -767,7 +587,6 @@ class _CheckoutPageState extends State<CheckoutPage>
                   color: AppColors.textPrimary,
                 ),
               ),
-              
               if (onEdit != null)
                 GestureDetector(
                   onTap: onEdit,
@@ -782,9 +601,7 @@ class _CheckoutPageState extends State<CheckoutPage>
                 ),
             ],
           ),
-          
           const SizedBox(height: 12),
-          
           ...items.where((item) => item.isNotEmpty).map((item) {
             return Padding(
               padding: const EdgeInsets.only(bottom: 4),
@@ -804,17 +621,10 @@ class _CheckoutPageState extends State<CheckoutPage>
 
   Widget _buildNavigationButtons() {
     return Container(
-      padding: EdgeInsets.all(
-        ResponsiveUtils.getHorizontalPadding(context),
-      ),
+      padding: EdgeInsets.all(ResponsiveUtils.getHorizontalPadding(context)),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(
-          top: BorderSide(
-            color: AppColors.border,
-            width: 1,
-          ),
-        ),
+        border: Border(top: BorderSide(color: AppColors.border, width: 1)),
       ),
       child: SafeArea(
         child: Row(
@@ -832,14 +642,14 @@ class _CheckoutPageState extends State<CheckoutPage>
             
             if (_currentStep > 0) const SizedBox(width: 16),
             
-            // Next/Complete button
+            // Next button
             Expanded(
               flex: _currentStep == 0 ? 1 : 2,
               child: CustomButton(
-                text: _currentStep == 2 ? 'Completar pedido' : 'Continuar',
+                text: _getNextButtonText(),
                 onPressed: _isProcessing ? null : _handleNextStep,
                 isLoading: _isProcessing,
-                icon: _currentStep == 2 ? IconlyLight.tick_square : IconlyLight.arrow_right,
+                icon: _currentStep == 1 ? IconlyLight.tick_square : IconlyLight.arrow_right,
               ),
             ),
           ],
@@ -848,15 +658,23 @@ class _CheckoutPageState extends State<CheckoutPage>
     );
   }
 
+  String _getNextButtonText() {
+    switch (_currentStep) {
+      case 0:
+        return 'Continuar';
+      case 1:
+        return 'Proceder al pago';
+      default:
+        return 'Continuar';
+    }
+  }
+
   void _goToStep(int step) {
-    setState(() {
-      _currentStep = step;
-    });
-    _pageController.animateToPage(
-      step,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-    );
+    if (step >= 0 && step <= 2) {
+      setState(() {
+        _currentStep = step;
+      });
+    }
   }
 
   void _goToPreviousStep() {
@@ -866,115 +684,75 @@ class _CheckoutPageState extends State<CheckoutPage>
   }
 
   void _handleNextStep() {
-    if (_currentStep < 2) {
-      if (_validateCurrentStep()) {
+    if (_validateCurrentStep()) {
+      if (_currentStep < 1) {
         _goToStep(_currentStep + 1);
+      } else {
+        // Go to payment
+        _navigateToPayment();
       }
-    } else {
-      _processOrder();
     }
   }
 
   bool _validateCurrentStep() {
     switch (_currentStep) {
       case 0:
-        return _shippingFormKey.currentState?.validate() ?? false;
-      case 1:
-        if (_selectedPaymentMethod == 'card') {
-          return _paymentFormKey.currentState?.validate() ?? false;
+        if (!(_shippingFormKey.currentState?.validate() ?? false)) {
+          return false;
         }
+        _saveShippingData();
         return true;
-      case 2:
+      case 1:
         return true;
       default:
         return true;
     }
   }
 
-  Future<void> _processOrder() async {
-    setState(() {
-      _isProcessing = true;
-    });
+  void _saveShippingData() {
+    _shippingData = {
+      'firstName': _firstNameController.text,
+      'lastName': _lastNameController.text,
+      'email': _emailController.text,
+      'phone': _phoneController.text,
+      'address': _addressController.text,
+      'city': _cityController.text,
+      'state': _stateController.text,
+      'zipCode': _zipCodeController.text,
+      'country': _countryController.text,
+      'shippingMethod': _selectedShippingMethod,
+    };
+  }
 
-    try {
-      // Simulate order processing
-      await Future.delayed(const Duration(seconds: 2));
-
-      // Clear cart
-      final cartProvider = Provider.of<CartProvider>(context, listen: false);
-      await cartProvider.clearCart();
-
-      // Navigate to confirmation
-      // Navigator.pushReplacement(
-      //   context,
-      //   MaterialPageRoute(
-      //     builder: (context) => OrderConfirmationPage(
-      //       orderNumber: 'ORD-${DateTime.now().millisecondsSinceEpoch}',
-      //       totalAmount: widget.totalAmount,
-      //       estimatedDelivery: DateTime.now().add(const Duration(days: 7)),
-      //     ),
-      //   ),
-      // );
-    } catch (error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error procesando el pedido: $error'),
-          backgroundColor: AppColors.error,
+  void _navigateToPayment() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PaymentPage(
+          totalAmount: widget.totalAmount,
+          cartItems: widget.cartItems,
         ),
-      );
-    } finally {
-      setState(() {
-        _isProcessing = false;
-      });
-    }
-  }
-}
-
-// Input formatters for card number and expiry date
-class _CardNumberInputFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    final text = newValue.text.replaceAll(' ', '');
-    final buffer = StringBuffer();
-    
-    for (int i = 0; i < text.length; i++) {
-      if (i > 0 && i % 4 == 0) {
-        buffer.write(' ');
-      }
-      buffer.write(text[i]);
-    }
-    
-    final formatted = buffer.toString();
-    return TextEditingValue(
-      text: formatted,
-      selection: TextSelection.collapsed(offset: formatted.length),
+      ),
     );
   }
-}
 
-class _ExpiryDateInputFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    final text = newValue.text.replaceAll('/', '');
-    final buffer = StringBuffer();
-    
-    for (int i = 0; i < text.length && i < 4; i++) {
-      if (i == 2) {
-        buffer.write('/');
-      }
-      buffer.write(text[i]);
+  double _getShippingCost() {
+    switch (_selectedShippingMethod) {
+      case 'express':
+        return 25.0;
+      case 'standard':
+      default:
+        return 15.0;
     }
-    
-    final formatted = buffer.toString();
-    return TextEditingValue(
-      text: formatted,
-      selection: TextSelection.collapsed(offset: formatted.length),
-    );
+  }
+
+  String _getShippingMethodName() {
+    switch (_selectedShippingMethod) {
+      case 'express':
+        return 'Express (2-3 días)';
+      case 'standard':
+      default:
+        return 'Estándar (5-7 días)';
+    }
   }
 }

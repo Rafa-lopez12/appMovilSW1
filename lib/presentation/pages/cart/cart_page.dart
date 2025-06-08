@@ -457,14 +457,13 @@ class _CartPageState extends State<CartPage>
       return;
     }
 
-    Navigator.push(
+    Navigator.pushNamed(
       context,
-      MaterialPageRoute(
-        builder: (context) => CheckoutPage(
-          cartItems: cartProvider.itemsList,
-          totalAmount: cartProvider.finalTotal,
-        ),
-      ),
+      '/checkout',
+      arguments: {
+        'cartItems': cartProvider.itemsList,
+        'totalAmount': cartProvider.finalTotal,
+      },
     );
   }
 

@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:prueba/presentation/pages/cart/cart_page.dart';
+import 'package:prueba/presentation/pages/cart/checkout_page.dart';
 import 'package:prueba/presentation/pages/catalog/catalog_page.dart';
+import 'package:prueba/presentation/pages/payment/payment_page.dart';
+import 'package:prueba/presentation/pages/payment/payment_success_page.dart';
 import 'package:prueba/presentation/providers/payment_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:prueba/presentation/providers/product_provider.dart';
@@ -103,6 +106,21 @@ class TiendaVirtualApp extends StatelessWidget {
               '/main': (context) => const MainPage(),
               '/catalog': (context) => const CatalogPage(),
               '/cart': (context) => const CartPage(),
+                            '/checkout': (context) => CheckoutPage(
+                cartItems: ModalRoute.of(context)?.settings.arguments as List<dynamic>? ?? [],
+                totalAmount: (ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?)?['totalAmount'] ?? 0.0,
+              ),
+              '/payment': (context) => PaymentPage(
+                totalAmount: (ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?)?['totalAmount'] ?? 0.0,
+                cartItems: (ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?)?['cartItems'] ?? [],
+              ),
+              '/payment-success': (context) => PaymentSuccessPage(
+                orderId: (ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?)?['orderId'] ?? 'N/A',
+                amount: (ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?)?['amount'] ?? 0.0,
+                paymentMethod: (ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?)?['paymentMethod'] ?? 'Stripe',
+              ),
+              
+
 
               // Rutas adicionales se agregarán aquí
             },
