@@ -105,22 +105,33 @@ class TiendaVirtualApp extends StatelessWidget {
               '/register': (context) => const RegisterPage(),
               '/main': (context) => const MainPage(),
               '/catalog': (context) => const CatalogPage(),
-              '/cart': (context) => const CartPage(),
-                            '/checkout': (context) => CheckoutPage(
-                cartItems: ModalRoute.of(context)?.settings.arguments as List<dynamic>? ?? [],
-                totalAmount: (ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?)?['totalAmount'] ?? 0.0,
-              ),
-              '/payment': (context) => PaymentPage(
-                totalAmount: (ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?)?['totalAmount'] ?? 0.0,
-                cartItems: (ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?)?['cartItems'] ?? [],
-              ),
-              '/payment-success': (context) => PaymentSuccessPage(
-                orderId: (ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?)?['orderId'] ?? 'N/A',
-                amount: (ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?)?['amount'] ?? 0.0,
-                paymentMethod: (ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?)?['paymentMethod'] ?? 'Stripe',
-              ),
+              '/cart': (context) => const CartPage(),            
+              '/checkout': (context) {
+                final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+                return CheckoutPage(
+                  cartItems: args?['cartItems'] as List<dynamic>? ?? [],
+                  totalAmount: args?['totalAmount'] as double? ?? 0.0,
+                );
+              },
               
-
+              // ✅ RUTA PAYMENT CORREGIDA  
+              '/payment': (context) {
+                final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+                return PaymentPage(
+                  totalAmount: args?['totalAmount'] as double? ?? 0.0,
+                  cartItems: args?['cartItems'] as List<dynamic>? ?? [],
+                );
+              },
+              
+              // ✅ RUTA PAYMENT SUCCESS CORREGIDA
+              '/payment-success': (context) {
+                final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+                return PaymentSuccessPage(
+                  orderId: args?['orderId'] as String? ?? 'N/A',
+                  amount: args?['amount'] as double? ?? 0.0,
+                  paymentMethod: args?['paymentMethod'] as String? ?? 'Stripe',
+                );
+              },
 
               // Rutas adicionales se agregarán aquí
             },

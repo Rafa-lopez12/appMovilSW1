@@ -55,44 +55,96 @@ class _CheckoutPageState extends State<CheckoutPage>
   String _selectedShippingMethod = 'standard';
   Map<String, dynamic> _shippingData = {};
 
-  @override
-  void initState() {
-    super.initState();
-    
-    // 🔍 VALIDACIONES CRÍTICAS PRIMERO
-    print('=== CHECKOUT INIT DEBUG ===');
-    print('Cart items: ${widget.cartItems.length}');
-    print('Total amount: ${widget.totalAmount}');
-    
-    // 🚨 VALIDAR DATOS ANTES DE CONTINUAR
-    if (!_validateInputData()) {
-      return; // Sale early si hay problemas
+@override
+void initState() {
+  super.initState();
+  
+  // 🔍 DEBUG INICIAL CON MÁS INFORMACIÓN
+  print('=== CHECKOUT INIT DEBUG ===');
+  print('Cart items type: ${widget.cartItems.runtimeType}');
+  print('Cart items length: ${widget.cartItems.length}');
+  print('Total amount type: ${widget.totalAmount.runtimeType}');
+  print('Total amount value: ${widget.totalAmount}');
+  
+  // 🔍 DEBUG CADA ITEM DEL CARRITO
+  for (int i = 0; i < widget.cartItems.length; i++) {
+    print('Item $i: ${widget.cartItems[i].runtimeType}');
+    try {
+      print('Item $i name: ${widget.cartItems[i]?.name ?? 'No name'}');
+    } catch (e) {
+      print('Error accessing item $i: $e');
     }
-    
-    // ✅ INICIALIZACIÓN SEGURA
+  }
+  
+  // ✅ VALIDACIONES MEJORADAS
+  if (!_validateInputData()) {
+    return; // Sale early si hay problemas
+  }
+  
+  // ✅ INICIALIZACIÓN SEGURA SOLO SI PASÓ VALIDACIONES
+  WidgetsBinding.instance.addPostFrameCallback((_) {
     _prefillUserData();
+  });
+}
+
+// Método de validación mejorado:
+bool _validateInputData() {
+  // ✅ VALIDACIÓN 1: Lista no nula
+  if (widget.cartItems == null) {
+    print('ERROR: Cart items is null');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _navigateBackWithError('Error: Datos del carrito no válidos');
+    });
+    return false;
   }
 
-  // 🔍 VALIDACIÓN DE DATOS DE ENTRADA
-  bool _validateInputData() {
-    if (widget.cartItems.isEmpty) {
-      print('ERROR: Cart items is empty');
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _navigateBackWithError('El carrito está vacío');
-      });
-      return false;
-    }
-
-    if (widget.totalAmount <= 0) {
-      print('ERROR: Invalid total amount: ${widget.totalAmount}');
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _navigateBackWithError('Total de compra inválido');
-      });
-      return false;
-    }
-
-    return true;
+  // ✅ VALIDACIÓN 2: Lista no vacía
+  if (widget.cartItems.isEmpty) {
+    print('ERROR: Cart items is empty');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _navigateBackWithError('El carrito está vacío');
+    });
+    return false;
   }
+
+  // ✅ VALIDACIÓN 3: Total válido
+  if (widget.totalAmount == null || widget.totalAmount <= 0) {
+    print('ERROR: Invalid total amount: ${widget.totalAmount}');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _navigateBackWithError('Total de compra inválido: \$${widget.totalAmount}');
+    });
+    return false;
+  }
+
+  // ✅ VALIDACIÓN 4: Items válidos
+  try {
+    for (int i = 0; i < widget.cartItems.length; i++) {
+      final item = widget.cartItems[i];
+      if (item == null) {
+        print('ERROR: Item at index $i is null');
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _navigateBackWithError('Error: Item del carrito inválido en posición $i');
+        });
+        return false;
+      }
+      
+      // Verificar propiedades básicas sin asumir tipos
+      if (item.toString().contains('null') && !item.toString().contains('Instance')) {
+        print('WARNING: Item at index $i might be problematic: $item');
+      }
+    }
+  } catch (e) {
+    print('ERROR: Exception validating cart items: $e');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _navigateBackWithError('Error validando items del carrito: $e');
+    });
+    return false;
+  }
+
+  print('✅ All validations passed');
+  return true;
+}
+
 
   void _navigateBackWithError(String message) {
     Navigator.of(context).pop();
@@ -724,17 +776,59 @@ class _CheckoutPageState extends State<CheckoutPage>
     };
   }
 
-  void _navigateToPayment() {
-    Navigator.push(
+void _navigateToPayment() {
+  print('=== NAVIGATE TO PAYMENT DEBUG ===');
+  
+  try {
+    // ✅ VALIDACIONES ANTES DE NAVEGAR
+    if (widget.cartItems.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Carrito vacío'), backgroundColor: AppColors.error),
+      );
+      return;
+    }
+
+    if (widget.totalAmount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Total inválido'), backgroundColor: AppColors.error),
+      );
+      return;
+    }
+
+    print('Navigating to payment with:');
+    print('- Items count: ${widget.cartItems.length}');
+    print('- Total: ${widget.totalAmount}');
+
+    // ✅ NAVEGACIÓN SEGURA
+    Navigator.pushNamed(
       context,
-      MaterialPageRoute(
-        builder: (context) => PaymentPage(
-          totalAmount: widget.totalAmount,
-          cartItems: widget.cartItems,
+      '/payment',
+      arguments: {
+        'totalAmount': widget.totalAmount,
+        'cartItems': widget.cartItems,
+      },
+    ).then((result) {
+      print('Payment navigation completed with result: $result');
+    }).catchError((error) {
+      print('Payment navigation error: $error');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error navegando al pago: $error'),
+          backgroundColor: AppColors.error,
         ),
+      );
+    });
+    
+  } catch (e) {
+    print('Exception in _navigateToPayment: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Error: $e'),
+        backgroundColor: AppColors.error,
       ),
     );
   }
+}
 
   double _getShippingCost() {
     switch (_selectedShippingMethod) {

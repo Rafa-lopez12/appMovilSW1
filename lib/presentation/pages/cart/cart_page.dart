@@ -5,6 +5,7 @@ import 'package:animate_do/animate_do.dart';
 import 'package:iconly/iconly.dart';
 import 'package:provider/provider.dart';
 
+
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/utils/responsive_utils.dart';
@@ -14,7 +15,7 @@ import '../../widgets/cart/cart_summary_widget.dart';
 import '../../widgets/cart/empty_cart_widget.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/auth_provider.dart';
-import 'checkout_page.dart';
+
 
 class CartPage extends StatefulWidget {
   const CartPage({Key? key}) : super(key: key);
@@ -270,7 +271,7 @@ class _CartPageState extends State<CartPage>
                   Expanded(
                     flex: 2,
                     child: CustomButton(
-                      text: 'Proceder al pago (\$${cartProvider.finalTotal.toStringAsFixed(2)})',
+                      text: 'Proceder al vamooooo (\$${cartProvider.finalTotal.toStringAsFixed(2)})',
                       onPressed: cartProvider.canCheckout() 
                           ? () => _proceedToCheckout(cartProvider)
                           : null,
@@ -447,16 +448,45 @@ class _CartPageState extends State<CartPage>
     );
   }
 
-  void _proceedToCheckout(CartProvider cartProvider) {
-    HapticFeedback.lightImpact();
-    
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    
-    if (!authProvider.isAuthenticated) {
-      _showLoginRequiredDialog();
-      return;
-    }
+void _proceedToCheckout(CartProvider cartProvider) {
+  HapticFeedback.lightImpact();
+  
+  final authProvider = Provider.of<AuthProvider>(context, listen: false);
+  
+  if (!authProvider.isAuthenticated) {
+    _showLoginRequiredDialog();
+    return;
+  }
 
+  // ✅ VALIDACIÓN ANTES DE NAVEGAR
+  if (cartProvider.itemsList.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('El carrito está vacío'),
+        backgroundColor: AppColors.error,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+    return;
+  }
+
+  if (cartProvider.finalTotal <= 0) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Total inválido'),
+        backgroundColor: AppColors.error,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+    return;
+  }
+
+  // ✅ NAVEGACIÓN CORREGIDA CON DEBUG
+  print('=== NAVIGATION DEBUG ===');
+  print('Cart items count: ${cartProvider.itemsList.length}');
+  print('Final total: ${cartProvider.finalTotal}');
+  
+  try {
     Navigator.pushNamed(
       context,
       '/checkout',
@@ -464,8 +494,30 @@ class _CartPageState extends State<CartPage>
         'cartItems': cartProvider.itemsList,
         'totalAmount': cartProvider.finalTotal,
       },
+    ).then((result) {
+      // Opcional: manejar el resultado de vuelta
+      print('Checkout navigation completed with result: $result');
+    }).catchError((error) {
+      print('Navigation error: $error');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error de navegación: $error'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    });
+  } catch (e) {
+    print('Navigation exception: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Error navegando al checkout: $e'),
+        backgroundColor: AppColors.error,
+        behavior: SnackBarBehavior.floating,
+      ),
     );
   }
+}
 
   void _showClearCartDialog(CartProvider cartProvider) {
     showDialog(
