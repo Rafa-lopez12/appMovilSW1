@@ -80,6 +80,7 @@ class _CustomTextFieldState extends State<CustomTextField>
   }
 
   void _onFocusChange() {
+    if (!mounted) return;
     setState(() {
       _isFocused = _focusNode.hasFocus;
     });
@@ -90,6 +91,18 @@ class _CustomTextFieldState extends State<CustomTextField>
       _animationController.reverse();
     }
   }
+
+  void _updateErrorState(bool hasError) {
+    if (!mounted) return;
+      
+    if (_hasError != hasError) {
+      setState(() {
+        _hasError = hasError;
+      });
+    }
+  }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -194,11 +207,10 @@ class _CustomTextFieldState extends State<CustomTextField>
                   ),
                 ),
                 validator: (value) {
+                  if (widget.validator == null) return null;
                   final error = widget.validator?.call(value);
                   WidgetsBinding.instance.addPostFrameCallback((_) {
-                    setState(() {
-                      _hasError = error != null;
-                    });
+                    _updateErrorState(error != null);
                   });
                   return error;
                 },

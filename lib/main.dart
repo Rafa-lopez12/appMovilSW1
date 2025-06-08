@@ -22,8 +22,19 @@ import 'presentation/pages/home/main_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  await _initializeStripe();
+  
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    debugPrint('Global Flutter Error: ${details.exception}');
+    debugPrint('Stack trace: ${details.stack}');
+  };
+    try {
+    await _initializeStripe();
+    debugPrint('✅ Stripe initialized successfully');
+  } catch (e) {
+    debugPrint('❌ Error initializing Stripe: $e');
+    // La app puede continuar sin Stripe en modo de depuración
+  }
   
   // Configurar la barra de estado
   SystemChrome.setSystemUIOverlayStyle(
@@ -46,10 +57,20 @@ void main() async {
 }
 
 Future<void> _initializeStripe() async {
-  // Configurar Stripe con tu clave pública
-  // IMPORTANTE: Esta debe ser tu clave PÚBLICA (pk_test_...), no la secreta (sk_...)
-  Stripe.publishableKey = 'pk_test_51RTUBMHIj82SmGbDobq1uVtN5RTTtJbmY81CiBDmxgDzIEDe1QB7NooKByfJnQGL3uUTKPiVkYxNeCcBID4vua9R00lSQRU395';
-
+  try {
+    // IMPORTANTE: Esta debe ser tu clave PÚBLICA (pk_test_...), no la secreta (sk_...)
+    const String stripePublishableKey = 'pk_test_51RTUBMHIj82SmGbDobq1uVtN5RTTtJbmY81CiBDmxgDzIEDe1QB7NooKByfJnQGL3uUTKPiVkYxNeCcBID4vua9R00lSQRU395';
+    
+    Stripe.publishableKey = stripePublishableKey;
+    
+    // ✅ VERIFICAR QUE STRIPE SE INICIALIZÓ CORRECTAMENTE
+    debugPrint('Stripe publishable key set: ${stripePublishableKey.substring(0, 12)}...');
+    await Stripe.instance.applySettings();
+    
+  } catch (e) {
+    debugPrint('Error in Stripe initialization: $e');
+    rethrow;
+  }
 }
 
 class TiendaVirtualApp extends StatelessWidget {

@@ -271,7 +271,7 @@ class _CartPageState extends State<CartPage>
                   Expanded(
                     flex: 2,
                     child: CustomButton(
-                      text: 'Proceder al vamooooo (\$${cartProvider.finalTotal.toStringAsFixed(2)})',
+                      text: 'Proceder al pagoo (\$${cartProvider.finalTotal.toStringAsFixed(2)})',
                       onPressed: cartProvider.canCheckout() 
                           ? () => _proceedToCheckout(cartProvider)
                           : null,

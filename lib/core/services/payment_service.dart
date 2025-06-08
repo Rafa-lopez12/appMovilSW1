@@ -103,17 +103,17 @@ class PaymentService {
           customerId: paymentIntent.customerId.isNotEmpty ? paymentIntent.customerId : null,
           style: ThemeMode.system,
           // Opcional: configurar billing details
-          billingDetails: const BillingDetails(
-            // address: Address(...), // Si tienes datos de dirección
-          ),
-          // Habilitar Apple Pay / Google Pay si está disponible
-          applePay: const PaymentSheetApplePay(
-            merchantCountryCode: 'US', // Cambia según tu país
-          ),
-          googlePay: const PaymentSheetGooglePay(
-            merchantCountryCode: 'US', // Cambia según tu país
-            testEnv: true, // Cambiar a false en producción
-          ),
+          // billingDetails: const BillingDetails(
+          //   // address: Address(...), // Si tienes datos de dirección
+          // ),
+          // // Habilitar Apple Pay / Google Pay si está disponible
+          // applePay: const PaymentSheetApplePay(
+          //   merchantCountryCode: 'US', // Cambia según tu país
+          // ),
+          // googlePay: const PaymentSheetGooglePay(
+          //   merchantCountryCode: 'US', // Cambia según tu país
+          //   testEnv: true, // Cambiar a false en producción
+          // ),
         ),
       );
     } catch (e) {
