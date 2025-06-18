@@ -229,7 +229,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin 
           children: [
             _buildQuickActionCard(
               icon: IconlyLight.camera,
-              title: 'Buscar por Foto',
+              title: 'Buscar por Fotooo',
               subtitle: 'IA Visual',
               color: AppColors.primary,
               onTap: _onAISearchTapped,

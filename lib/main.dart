@@ -2,11 +2,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
+import 'package:prueba/presentation/pages/ai_search/ai_results_page.dart';
+import 'package:prueba/presentation/pages/ai_search/ai_search_page.dart';
 import 'package:prueba/presentation/pages/cart/cart_page.dart';
 import 'package:prueba/presentation/pages/cart/checkout_page.dart';
 import 'package:prueba/presentation/pages/catalog/catalog_page.dart';
 import 'package:prueba/presentation/pages/payment/payment_page.dart';
 import 'package:prueba/presentation/pages/payment/payment_success_page.dart';
+import 'package:prueba/presentation/providers/ai_search_provider.dart';
 import 'package:prueba/presentation/providers/payment_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:prueba/presentation/providers/product_provider.dart';
@@ -97,6 +100,8 @@ class TiendaVirtualApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (context) => PaymentProvider(),
         ),
+        ChangeNotifierProvider(
+          create: (context) => AiSearchProvider()),
         
         // Aquí irán más providers cuando los necesites:
         // ChangeNotifierProvider(create: (context) => ProductProvider()),
@@ -126,7 +131,9 @@ class TiendaVirtualApp extends StatelessWidget {
               '/register': (context) => const RegisterPage(),
               '/main': (context) => const MainPage(),
               '/catalog': (context) => const CatalogPage(),
-              '/cart': (context) => const CartPage(),            
+              '/cart': (context) => const CartPage(),     
+              '/ai-search': (context) => const AISearchPage(),
+              '/ai-search-results': (context) => const AIResultsPage(),       
               '/checkout': (context) {
                 final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
                 return CheckoutPage(
