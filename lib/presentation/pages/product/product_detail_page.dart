@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:iconly/iconly.dart';
 import 'package:provider/provider.dart';
+import 'package:prueba/data/models/product/product_image_model.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
@@ -17,6 +18,7 @@ import '../../widgets/product/product_rating_widget.dart';
 import '../../widgets/product/similar_products_widget.dart';
 import '../../providers/product_provider.dart';
 import '../../providers/cart_provider.dart';
+import '../virtual_tryon/virtual_tryon_page.dart';
 
 class ProductDetailPage extends StatefulWidget {
   final String productId;
@@ -314,11 +316,11 @@ class _ProductDetailPageState extends State<ProductDetailPage>
     );
   }
 
-  Widget _buildImageGallery(dynamic product) {
+ Widget _buildImageGallery(dynamic product) {
     return FadeInUp(
       duration: const Duration(milliseconds: 600),
       child: ImageGalleryWidget(
-        images: product.images?.map<String>((img) => img.url).toList() ?? [],
+        images: product.images?.map<String>((ProductImageModel img) => img.url).toList() ?? [],
         heroTag: 'product-${product.id}',
       ),
     );
@@ -451,42 +453,60 @@ class _ProductDetailPageState extends State<ProductDetailPage>
     );
   }
 
-  Widget _buildQuantityAndActions(dynamic product) {
-    return FadeInUp(
-      duration: const Duration(milliseconds: 1200),
-      child: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: ResponsiveUtils.getHorizontalPadding(context),
-          vertical: 20,
-        ),
-        child: Row(
-          children: [
-            // Selector de cantidad
-            Expanded(
-              flex: 2,
-              child: QuantitySelectorWidget(
-                quantity: _quantity,
-                onQuantityChanged: (quantity) {
-                  setState(() {
-                    _quantity = quantity;
-                  });
-                },
-                maxQuantity: _getMaxQuantity(product),
-              ),
-            ),
-            
-            const SizedBox(width: 16),
-            
-            // Indicador de stock
-            Expanded(
-              flex: 3,
-              child: _buildStockIndicator(product),
-            ),
-          ],
-        ),
+Widget _buildQuantityAndActions(dynamic product) {
+  return FadeInUp(
+    duration: const Duration(milliseconds: 1200),
+    child: Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: ResponsiveUtils.getHorizontalPadding(context),
+        vertical: 20,
       ),
-    );
-  }
+      child: Column(
+        children: [
+          // Selector de cantidad y stock indicator
+          Row(
+            children: [
+              // Selector de cantidad
+              Expanded(
+                flex: 2,
+                child: QuantitySelectorWidget(
+                  quantity: _quantity,
+                  onQuantityChanged: (quantity) {
+                    setState(() {
+                      _quantity = quantity;
+                    });
+                  },
+                  maxQuantity: _getMaxQuantity(product),
+                ),
+              ),
+              
+              const SizedBox(width: 16),
+              
+              // Indicador de stock
+              Expanded(
+                flex: 3,
+                child: _buildStockIndicator(product),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // Botón de probador virtual
+          CustomButton(
+            text: 'Probar virtualmente',
+            onPressed: () => _navigateToVirtualTryon(product),
+            icon: IconlyLight.user,
+            type: ButtonType.secondary,
+            size: ButtonSize.medium,
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+  
 
   Widget _buildStockIndicator(dynamic product) {
     final stock = _getMaxQuantity(product);
@@ -786,70 +806,123 @@ class _ProductDetailPageState extends State<ProductDetailPage>
     );
   }
 
-  Widget _buildBottomActions(dynamic product) {
-    final canAddToCart = _selectedSize != null && 
-                        _selectedColor != null && 
-                        _getMaxQuantity(product) > 0;
+Widget _buildBottomActions(dynamic product) {
+  final canAddToCart = _selectedSize != null && 
+                      _selectedColor != null && 
+                      _getMaxQuantity(product) > 0;
 
-    return Container(
-      padding: EdgeInsets.all(
-        ResponsiveUtils.getHorizontalPadding(context),
-      ),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          top: BorderSide(
-            color: AppColors.border,
-            width: 1,
-          ),
+  return Container(
+    padding: EdgeInsets.all(
+      ResponsiveUtils.getHorizontalPadding(context),
+    ),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      border: Border(
+        top: BorderSide(
+          color: AppColors.border,
+          width: 1,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.05),
+          blurRadius: 10,
+          offset: const Offset(0, -2),
+        ),
+      ],
+    ),
+    child: SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Fila principal de botones
+          Row(
+            children: [
+              // Botón de favorito
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  border: Border.all(color: AppColors.border),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: IconButton(
+                  onPressed: _toggleFavorite,
+                  icon: Icon(
+                    _isFavorite ? IconlyBold.heart : IconlyLight.heart,
+                    color: _isFavorite ? AppColors.error : AppColors.textSecondary,
+                  ),
+                ),
+              ),
+              
+              const SizedBox(width: 12),
+              
+              // Botón de probador virtual
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AppColors.secondary,
+                      AppColors.accent,
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: IconButton(
+                  onPressed: () => _navigateToVirtualTryon(product),
+                  icon: const Icon(
+                    IconlyBold.user_2,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              
+              const SizedBox(width: 12),
+              
+              // Botón agregar al carrito
+              Expanded(
+                child: CustomButton(
+                  text: canAddToCart 
+                      ? 'Agregar (\$${(product.minPrice * _quantity).toStringAsFixed(2)})'
+                      : _getMaxQuantity(product) <= 0
+                          ? 'Agotado'
+                          : 'Selecciona variante',
+                  onPressed: canAddToCart ? _addToCart : null,
+                  icon: IconlyLight.bag,
+                ),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 12),
+          
+          // Texto informativo del probador virtual
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                IconlyLight.info_circle,
+                size: 14,
+                color: AppColors.textSecondary,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'Prueba cómo te queda antes de comprar',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
           ),
         ],
       ),
-      child: SafeArea(
-        child: Row(
-          children: [
-            // Botón de favorito
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                border: Border.all(color: AppColors.border),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: IconButton(
-                onPressed: _toggleFavorite,
-                icon: Icon(
-                  _isFavorite ? IconlyBold.heart : IconlyLight.heart,
-                  color: _isFavorite ? AppColors.error : AppColors.textSecondary,
-                ),
-              ),
-            ),
-            
-            const SizedBox(width: 16),
-            
-            // Botón agregar al carrito
-            Expanded(
-              child: CustomButton(
-                text: canAddToCart 
-                    ? 'Agregar al carrito (\$${(product.minPrice * _quantity).toStringAsFixed(2)})'
-                    : _getMaxQuantity(product) <= 0
-                        ? 'Agotado'
-                        : 'Selecciona variante',
-                onPressed: canAddToCart ? _addToCart : null,
-                icon: IconlyLight.bag,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+    ),
+  );
+}
 
   int _getMaxQuantity(dynamic product) {
     if (_selectedSize == null || _selectedColor == null) {
@@ -883,6 +956,53 @@ class _ProductDetailPageState extends State<ProductDetailPage>
       ),
     );
   }
+
+
+  void _navigateToVirtualTryon(dynamic product) {
+  HapticFeedback.lightImpact();
+  
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => VirtualTryonPage(
+        productId: product.id,
+        productImageUrl: product.mainImage,
+      ),
+    ),
+  );
+  
+  // Mostrar mensaje informativo
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Row(
+        children: [
+          Icon(
+            IconlyBold.user_2,
+            color: Colors.white,
+            size: 20,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Prueba cómo te queda ${product.name ?? 'este producto'} virtualmente',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+      backgroundColor: AppColors.secondary,
+      behavior: SnackBarBehavior.floating,
+      duration: const Duration(seconds: 3),
+      margin: const EdgeInsets.all(16),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+    ),
+  );
+}
 
   void _shareProduct() {
     HapticFeedback.lightImpact();

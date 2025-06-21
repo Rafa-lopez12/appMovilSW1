@@ -9,10 +9,12 @@ import 'package:prueba/presentation/pages/cart/checkout_page.dart';
 import 'package:prueba/presentation/pages/catalog/catalog_page.dart';
 import 'package:prueba/presentation/pages/payment/payment_page.dart';
 import 'package:prueba/presentation/pages/payment/payment_success_page.dart';
+import 'package:prueba/presentation/pages/virtual_tryon/virtual_tryon_page.dart';
 import 'package:prueba/presentation/providers/ai_search_provider.dart';
 import 'package:prueba/presentation/providers/payment_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:prueba/presentation/providers/product_provider.dart';
+import 'package:prueba/presentation/providers/virtual_tryon_provider.dart';
 
 import 'core/constants/app_colors.dart';
 import 'core/theme/app_theme.dart';
@@ -102,6 +104,10 @@ class TiendaVirtualApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(
           create: (context) => AiSearchProvider()),
+
+        ChangeNotifierProvider(
+          create: (context) => VirtualTryonProvider(),
+        ),
         
         // Aquí irán más providers cuando los necesites:
         // ChangeNotifierProvider(create: (context) => ProductProvider()),
@@ -160,6 +166,14 @@ class TiendaVirtualApp extends StatelessWidget {
                   paymentMethod: args?['paymentMethod'] as String? ?? 'Stripe',
                 );
               },
+
+              '/virtual-tryon': (context) {
+              final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+              return VirtualTryonPage(
+                productId: args?['productId'] as String?,
+                productImageUrl: args?['productImageUrl'] as String?,
+              );
+            },
 
               // Rutas adicionales se agregarán aquí
             },

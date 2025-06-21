@@ -6,30 +6,24 @@ import '../../data/models/virtual_tryon/virtual_tryon_session_model.dart';
 class VirtualTryonProvider extends ChangeNotifier {
   final VirtualTryonService _tryonService = VirtualTryonService();
 
-  // State variables
   List<VirtualTryonSessionModel> _sessions = [];
   VirtualTryonSessionModel? _currentSession;
   
-  // Loading states
   bool _isLoading = false;
   bool _isLoadingHistory = false;
   bool _isCreatingSession = false;
   bool _isPollingStatus = false;
   String? _errorMessage;
   
-  // Upload progress
   double _uploadProgress = 0.0;
   String _uploadStatus = '';
   
-  // Polling for session status
   bool _isPollingActive = false;
   
-  // Cache
   Map<String, VirtualTryonSessionModel> _sessionCache = {};
   DateTime? _lastCacheUpdate;
   static const Duration _cacheValidDuration = Duration(minutes: 5);
 
-  // Getters
   List<VirtualTryonSessionModel> get sessions => _sessions;
   VirtualTryonSessionModel? get currentSession => _currentSession;
   bool get isLoading => _isLoading;
@@ -41,7 +35,6 @@ class VirtualTryonProvider extends ChangeNotifier {
   String get uploadStatus => _uploadStatus;
   bool get isPollingActive => _isPollingActive;
 
-  // Computed getters
   int get totalSessions => _sessions.length;
   bool get hasSessions => _sessions.isNotEmpty;
   List<VirtualTryonSessionModel> get completedSessions => 
@@ -54,13 +47,61 @@ class VirtualTryonProvider extends ChangeNotifier {
   int get processingCount => processingSessions.length;
   int get failedCount => failedSessions.length;
 
-  // Cache validation
   bool get _isCacheValid {
     if (_lastCacheUpdate == null) return false;
     return DateTime.now().difference(_lastCacheUpdate!) < _cacheValidDuration;
   }
 
-  // Crear try-on desde URLs
+  Future<VirtualTryonSessionModel?> createTryonWithUserImage({
+    required File userImage,
+    required String garmentImageUrl,
+    String? productoId,
+    Map<String, dynamic>? metadata,
+  }) async {
+    _setCreatingSession(true);
+    _clearError();
+    _updateUploadStatus('Preparando imágenes...');
+
+    try {
+      _updateUploadProgress(0.2);
+      _updateUploadStatus('Convirtiendo imagen del usuario...');
+      
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      _updateUploadProgress(0.4);
+      _updateUploadStatus('Enviando a servidor...');
+
+      final session = await _tryonService.createTryonWithUserImage(
+        userImage: userImage,
+        garmentImageUrl: garmentImageUrl,
+        productoId: productoId,
+        metadata: metadata,
+      );
+
+      _updateUploadProgress(0.8);
+      _updateUploadStatus('Try-on creado exitosamente');
+      
+      if (session != null) {
+        _currentSession = session;
+        _addSessionToCache(session);
+        
+        if (session.status == 'processing' || session.status == 'pending') {
+          _startPolling(session.id);
+        }
+        
+        _updateUploadProgress(1.0);
+      }
+
+      return session;
+    } catch (error) {
+      _handleError(error);
+      return null;
+    } finally {
+      _setCreatingSession(false);
+      _updateUploadProgress(0.0);
+    }
+  }
+
   Future<VirtualTryonSessionModel?> createTryonFromUrls({
     required String userImageUrl,
     required String garmentImageUrl,
@@ -69,7 +110,7 @@ class VirtualTryonProvider extends ChangeNotifier {
   }) async {
     _setCreatingSession(true);
     _clearError();
-    _updateUploadStatus('Iniciando try-on virtual...');
+    _updateUploadStatus('Iniciando try-on desde URLs...');
 
     try {
       final session = await _tryonService.createTryonFromUrls(
@@ -80,15 +121,15 @@ class VirtualTryonProvider extends ChangeNotifier {
       );
 
       _currentSession = session;
-      _addSessionToCache(session);
-      _updateUploadStatus('Try-on creado exitosamente');
-      
-      // Iniciar polling si está en processing
-      if (session.status == 'processing' || session.status == 'pending') {
-        _startPolling(session.id);
+      if (session != null) {
+        _addSessionToCache(session);
+        _updateUploadStatus('Try-on creado exitosamente');
+        
+        if (session.status == 'processing' || session.status == 'pending') {
+          _startPolling(session.id);
+        }
       }
 
-      debugPrint('Try-on creado desde URLs: ${session.id}');
       return session;
     } catch (error) {
       _handleError(error);
@@ -98,7 +139,6 @@ class VirtualTryonProvider extends ChangeNotifier {
     }
   }
 
-  // Crear try-on desde base64
   Future<VirtualTryonSessionModel?> createTryonFromBase64({
     required String userImageBase64,
     required String garmentImageBase64,
@@ -107,7 +147,7 @@ class VirtualTryonProvider extends ChangeNotifier {
   }) async {
     _setCreatingSession(true);
     _clearError();
-    _updateUploadStatus('Procesando imágenes...');
+    _updateUploadStatus('Procesando imágenes base64...');
 
     try {
       final session = await _tryonService.createTryonFromBase64(
@@ -118,15 +158,15 @@ class VirtualTryonProvider extends ChangeNotifier {
       );
 
       _currentSession = session;
-      _addSessionToCache(session);
-      _updateUploadStatus('Try-on creado exitosamente');
-      
-      // Iniciar polling si está en processing
-      if (session.status == 'processing' || session.status == 'pending') {
-        _startPolling(session.id);
+      if (session != null) {
+        _addSessionToCache(session);
+        _updateUploadStatus('Try-on creado exitosamente');
+        
+        if (session.status == 'processing' || session.status == 'pending') {
+          _startPolling(session.id);
+        }
       }
 
-      debugPrint('Try-on creado desde base64: ${session.id}');
       return session;
     } catch (error) {
       _handleError(error);
@@ -136,7 +176,6 @@ class VirtualTryonProvider extends ChangeNotifier {
     }
   }
 
-  // Subir archivos y crear try-on
   Future<VirtualTryonSessionModel?> uploadAndCreateTryon({
     required File userImage,
     required File garmentImage,
@@ -149,7 +188,6 @@ class VirtualTryonProvider extends ChangeNotifier {
     _updateUploadStatus('Subiendo imágenes...');
 
     try {
-      // Simular progreso de subida
       for (int i = 1; i <= 5; i++) {
         _updateUploadProgress(i * 0.15);
         _updateUploadStatus('Subiendo imágenes... ${(i * 15).toInt()}%');
@@ -167,14 +205,14 @@ class VirtualTryonProvider extends ChangeNotifier {
       _updateUploadStatus('Try-on creado exitosamente');
       
       _currentSession = session;
-      _addSessionToCache(session);
-      
-      // Iniciar polling si está en processing
-      if (session.status == 'processing' || session.status == 'pending') {
-        _startPolling(session.id);
+      if (session != null) {
+        _addSessionToCache(session);
+        
+        if (session.status == 'processing' || session.status == 'pending') {
+          _startPolling(session.id);
+        }
       }
 
-      debugPrint('Try-on creado con archivos: ${session.id}');
       return session;
     } catch (error) {
       _handleError(error);
@@ -185,13 +223,71 @@ class VirtualTryonProvider extends ChangeNotifier {
     }
   }
 
-  // Obtener estado de sesión
+  Future<VirtualTryonSessionModel?> createTryonSmart({
+    File? userImage,
+    String? userImageUrl,
+    File? garmentImage,
+    String? garmentImageUrl,
+    String? productoId,
+    Map<String, dynamic>? metadata,
+  }) async {
+    if ((userImage == null && userImageUrl == null) ||
+        (garmentImage == null && garmentImageUrl == null)) {
+      _handleError('Se requiere al menos una imagen o URL para usuario y prenda');
+      return null;
+    }
+
+    if (userImage != null && garmentImageUrl != null) {
+      return await createTryonWithUserImage(
+        userImage: userImage,
+        garmentImageUrl: garmentImageUrl,
+        productoId: productoId,
+        metadata: metadata,
+      );
+    }
+
+    if (userImageUrl != null && garmentImageUrl != null) {
+      return await createTryonFromUrls(
+        userImageUrl: userImageUrl,
+        garmentImageUrl: garmentImageUrl,
+        productoId: productoId,
+        metadata: metadata,
+      );
+    }
+
+    if (userImage != null && garmentImage != null) {
+      return await uploadAndCreateTryon(
+        userImage: userImage,
+        garmentImage: garmentImage,
+        productoId: productoId,
+        metadata: metadata,
+      );
+    }
+
+    _handleError('Combinación de parámetros no soportada');
+    return null;
+  }
+
+  Future<Map<String, dynamic>?> verifyReplicateAccount() async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      final result = await _tryonService.verifyReplicateAccount();
+      return result;
+    } catch (error) {
+      _handleError(error);
+      return null;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   Future<VirtualTryonSessionModel?> getSessionStatus(String sessionId) async {
     _setPollingStatus(true);
     _clearError();
 
     try {
-      // Check cache first
       if (_sessionCache.containsKey(sessionId) && _isCacheValid) {
         final cachedSession = _sessionCache[sessionId]!;
         if (cachedSession.status == 'completed' || cachedSession.status == 'failed') {
@@ -202,20 +298,19 @@ class VirtualTryonProvider extends ChangeNotifier {
 
       final session = await _tryonService.getSessionStatus(sessionId);
       
-      _addSessionToCache(session);
-      
-      // Update current session if it's the same
-      if (_currentSession?.id == sessionId) {
-        _currentSession = session;
-      }
-      
-      // Update in sessions list
-      final index = _sessions.indexWhere((s) => s.id == sessionId);
-      if (index != -1) {
-        _sessions[index] = session;
+      if (session != null) {
+        _addSessionToCache(session);
+        
+        if (_currentSession?.id == sessionId) {
+          _currentSession = session;
+        }
+        
+        final index = _sessions.indexWhere((s) => s.id == sessionId);
+        if (index != -1) {
+          _sessions[index] = session;
+        }
       }
 
-      debugPrint('Session status updated: ${session.id} - ${session.status}');
       return session;
     } catch (error) {
       _handleError(error);
@@ -225,7 +320,6 @@ class VirtualTryonProvider extends ChangeNotifier {
     }
   }
 
-  // Cargar historial de sesiones
   Future<void> loadSessionHistory({bool refresh = false}) async {
     if (_sessions.isNotEmpty && !refresh && _isCacheValid) return;
 
@@ -236,13 +330,11 @@ class VirtualTryonProvider extends ChangeNotifier {
       final sessions = await _tryonService.getMySessions();
       _sessions = sessions;
       
-      // Update cache
       for (final session in sessions) {
         _addSessionToCache(session);
       }
       
       _lastCacheUpdate = DateTime.now();
-      debugPrint('Loaded ${sessions.length} try-on sessions');
     } catch (error) {
       _handleError(error);
     } finally {
@@ -250,7 +342,6 @@ class VirtualTryonProvider extends ChangeNotifier {
     }
   }
 
-  // Reintentar sesión
   Future<VirtualTryonSessionModel?> retrySession(String sessionId) async {
     _setLoading(true);
     _clearError();
@@ -258,25 +349,23 @@ class VirtualTryonProvider extends ChangeNotifier {
     try {
       final session = await _tryonService.retrySession(sessionId);
       
-      _addSessionToCache(session);
-      
-      // Update current session if it's the same
-      if (_currentSession?.id == sessionId) {
-        _currentSession = session;
-      }
-      
-      // Update in sessions list
-      final index = _sessions.indexWhere((s) => s.id == sessionId);
-      if (index != -1) {
-        _sessions[index] = session;
-      }
-      
-      // Iniciar polling si está en processing
-      if (session.status == 'processing' || session.status == 'pending') {
-        _startPolling(session.id);
+      if (session != null) {
+        _addSessionToCache(session);
+        
+        if (_currentSession?.id == sessionId) {
+          _currentSession = session;
+        }
+        
+        final index = _sessions.indexWhere((s) => s.id == sessionId);
+        if (index != -1) {
+          _sessions[index] = session;
+        }
+        
+        if (session.status == 'processing' || session.status == 'pending') {
+          _startPolling(session.id);
+        }
       }
 
-      debugPrint('Session retried: ${session.id}');
       return session;
     } catch (error) {
       _handleError(error);
@@ -286,7 +375,6 @@ class VirtualTryonProvider extends ChangeNotifier {
     }
   }
 
-  // Iniciar polling para una sesión
   void _startPolling(String sessionId) {
     if (_isPollingActive) return;
     
@@ -296,10 +384,9 @@ class VirtualTryonProvider extends ChangeNotifier {
     _pollSessionStatus(sessionId);
   }
 
-  // Polling de estado de sesión
   Future<void> _pollSessionStatus(String sessionId) async {
     int attempts = 0;
-    const maxAttempts = 60; // 5 minutos máximo
+    const maxAttempts = 60;
     const pollInterval = Duration(seconds: 5);
 
     while (attempts < maxAttempts && _isPollingActive) {
@@ -321,7 +408,6 @@ class VirtualTryonProvider extends ChangeNotifier {
         await Future.delayed(pollInterval);
         attempts++;
       } catch (error) {
-        debugPrint('Polling error: $error');
         attempts++;
         await Future.delayed(pollInterval);
       }
@@ -333,32 +419,26 @@ class VirtualTryonProvider extends ChangeNotifier {
     }
   }
 
-  // Detener polling
   void _stopPolling() {
     _isPollingActive = false;
     notifyListeners();
   }
 
-  // Seleccionar sesión actual
   void setCurrentSession(VirtualTryonSessionModel session) {
     _currentSession = session;
     notifyListeners();
   }
 
-  // Limpiar sesión actual
   void clearCurrentSession() {
     _currentSession = null;
     notifyListeners();
   }
 
-  // Obtener sesión por ID
   VirtualTryonSessionModel? getSessionById(String sessionId) {
-    // Check cache first
     if (_sessionCache.containsKey(sessionId)) {
       return _sessionCache[sessionId];
     }
     
-    // Check sessions list
     try {
       return _sessions.firstWhere((session) => session.id == sessionId);
     } catch (e) {
@@ -366,7 +446,6 @@ class VirtualTryonProvider extends ChangeNotifier {
     }
   }
 
-  // Eliminar sesión del historial (local)
   void removeSessionFromHistory(String sessionId) {
     _sessions.removeWhere((session) => session.id == sessionId);
     _sessionCache.remove(sessionId);
@@ -378,7 +457,6 @@ class VirtualTryonProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Limpiar historial (local)
   void clearHistory() {
     _sessions.clear();
     _sessionCache.clear();
@@ -386,17 +464,14 @@ class VirtualTryonProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Refresh all data
   Future<void> refreshAll() async {
     await loadSessionHistory(refresh: true);
   }
 
-  // Initialize provider
   Future<void> initialize() async {
     await loadSessionHistory();
   }
 
-  // Reset provider
   void reset() {
     _stopPolling();
     _sessions.clear();
@@ -413,7 +488,6 @@ class VirtualTryonProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Private methods
   void _setLoading(bool loading) {
     _isLoading = loading;
     notifyListeners();
@@ -446,7 +520,6 @@ class VirtualTryonProvider extends ChangeNotifier {
 
   void _handleError(dynamic error) {
     _errorMessage = error.toString();
-    debugPrint('Virtual Tryon Provider Error: $_errorMessage');
     notifyListeners();
   }
 
@@ -459,20 +532,6 @@ class VirtualTryonProvider extends ChangeNotifier {
     _lastCacheUpdate = DateTime.now();
   }
 
-  // Performance monitoring
-  void logPerformanceMetrics() {
-    debugPrint('=== Virtual Tryon Provider Performance ===');
-    debugPrint('Sessions loaded: ${_sessions.length}');
-    debugPrint('Sessions in cache: ${_sessionCache.length}');
-    debugPrint('Cache valid: $_isCacheValid');
-    debugPrint('Is polling active: $_isPollingActive');
-    debugPrint('Completed sessions: $completedCount');
-    debugPrint('Processing sessions: $processingCount');
-    debugPrint('Failed sessions: $failedCount');
-    debugPrint('=========================================');
-  }
-
-  // Dispose resources
   @override
   void dispose() {
     _stopPolling();
