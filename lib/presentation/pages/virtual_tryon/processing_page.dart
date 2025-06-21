@@ -128,7 +128,7 @@ class _ProcessingPageState extends State<ProcessingPage>
         setState(() {
           _sessionResult = session;
           _progress = 1.0;
-          _currentStatus = AppStrings.tryOnComplete;
+          _currentStatus = 'Try-on completado';
         });
         
         // Wait a moment to show completion
@@ -155,10 +155,10 @@ class _ProcessingPageState extends State<ProcessingPage>
       setState(() {
         _hasError = true;
         _errorMessage = error.toString();
-        _currentStatus = AppStrings.tryOnFailed;
+        _currentStatus = 'Try-on falló';
       });
       
-      HapticFeedback.notificationFeedback(NotificationFeedbackType.error);
+      HapticFeedback.heavyImpact();
     }
   }
 
@@ -291,7 +291,7 @@ class _ProcessingPageState extends State<ProcessingPage>
           
           // Title
           Text(
-            AppStrings.processingTryOn,
+            'Procesando Try-On',
             style: TextStyle(
               color: Colors.white,
               fontSize: 18,
@@ -368,4 +368,434 @@ class _ProcessingPageState extends State<ProcessingPage>
             ),
           ),
           
-          const Size
+          const SizedBox(height: 16),
+          
+          // Current status
+          Text(
+            _currentStatus,
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.9),
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          
+          const SizedBox(height: 24),
+          
+          // Step indicator
+          _buildStepIndicator(),
+          
+          const SizedBox(height: 32),
+          
+          // Processing tips
+          _buildProcessingTips(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStepIndicator() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Column(
+        children: List.generate(_processingSteps.length, (index) {
+          final isCompleted = index < _currentStepIndex;
+          final isActive = index == _currentStepIndex;
+          
+          return Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              children: [
+                // Step indicator
+                Container(
+                  width: 20,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    color: isCompleted
+                        ? AppColors.success
+                        : isActive
+                            ? AppColors.primary
+                            : Colors.white.withOpacity(0.3),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: isCompleted
+                        ? Icon(
+                            Icons.check,
+                            size: 12,
+                            color: Colors.white,
+                          )
+                        : isActive
+                            ? Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                ),
+                              )
+                            : null,
+                  ),
+                ),
+                
+                const SizedBox(width: 12),
+                
+                // Step text
+                Expanded(
+                  child: Text(
+                    _processingSteps[index],
+                    style: TextStyle(
+                      color: isCompleted || isActive
+                          ? Colors.white
+                          : Colors.white.withOpacity(0.5),
+                      fontSize: 14,
+                      fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildProcessingTips() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.symmetric(horizontal: 24),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            IconlyBold.info_circle,
+            color: AppColors.accent,
+            size: 24,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '¿Sabías que...?',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Nuestro algoritmo de IA analiza más de 50 puntos de referencia en tu cuerpo para asegurar un ajuste perfecto de la prenda virtual.',
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.8),
+              fontSize: 14,
+              height: 1.4,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return FadeInUp(
+      duration: const Duration(milliseconds: 800),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Error icon
+          Container(
+            width: 100,
+            height: 100,
+            decoration: BoxDecoration(
+              color: AppColors.error.withOpacity(0.2),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              IconlyBold.danger,
+              size: 48,
+              color: AppColors.error,
+            ),
+          ),
+          
+          const SizedBox(height: 24),
+          
+          // Error title
+          Text(
+            'Error en el procesamiento',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // Error message
+          Container(
+            padding: const EdgeInsets.all(16),
+            margin: const EdgeInsets.symmetric(horizontal: 24),
+            decoration: BoxDecoration(
+              color: AppColors.error.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppColors.error.withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: Text(
+              _errorMessage ?? 'Ocurrió un error desconocido',
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.9),
+                fontSize: 14,
+                height: 1.4,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          
+          const SizedBox(height: 32),
+          
+          // Retry button
+          CustomButton(
+            text: 'Reintentar',
+            onPressed: _retryProcessing,
+            icon: IconlyLight.delete,
+            type: ButtonType.outline,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSuccessState() {
+    return FadeInUp(
+      duration: const Duration(milliseconds: 800),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Success icon
+          Container(
+            width: 100,
+            height: 100,
+            decoration: BoxDecoration(
+              color: AppColors.success.withOpacity(0.2),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              IconlyBold.tick_square,
+              size: 48,
+              color: AppColors.success,
+            ),
+          ),
+          
+          const SizedBox(height: 24),
+          
+          // Success title
+          Text(
+            '¡Try-on completado!',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // Success message
+          Text(
+            'Tu try-on virtual está listo. Serás redirigido automáticamente a ver el resultado.',
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.8),
+              fontSize: 16,
+              height: 1.4,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          
+          const SizedBox(height: 32),
+          
+          // Loading indicator
+          CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(AppColors.success),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomControls() {
+    if (_hasError) {
+      return FadeInUp(
+        duration: const Duration(milliseconds: 1000),
+        child: Row(
+          children: [
+            Expanded(
+              child: CustomButton(
+                text: 'Volver',
+                onPressed: () => Navigator.of(context).pop(),
+                type: ButtonType.outline,
+                icon: IconlyLight.arrow_left,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: CustomButton(
+                text: 'Contactar soporte',
+                onPressed: _contactSupport,
+                icon: IconlyLight.chat,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    
+    if (!_hasError && _sessionResult == null) {
+      return FadeInUp(
+        duration: const Duration(milliseconds: 1000),
+        child: Text(
+          'El procesamiento puede tomar hasta 2 minutos.\nPor favor mantén la app abierta.',
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.7),
+            fontSize: 14,
+            height: 1.4,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      );
+    }
+    
+    return const SizedBox.shrink();
+  }
+
+  // Event handlers
+  Future<bool?> _showCancelDialog() async {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Text('Cancelar procesamiento'),
+        content: Text(
+          '¿Estás seguro de que quieres cancelar el try-on? El progreso actual se perderá.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text('Continuar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(
+              'Cancelar',
+              style: TextStyle(color: AppColors.error),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showProcessingInfo() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Row(
+          children: [
+            Icon(
+              IconlyBold.info_circle,
+              color: AppColors.primary,
+              size: 24,
+            ),
+            const SizedBox(width: 8),
+            Text('Procesamiento de Try-On'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'El procesamiento de tu try-on virtual incluye:',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ...[
+              '🧠 Análisis de IA de tu pose corporal',
+              '👕 Mapeo 3D de la prenda seleccionada',
+              '✨ Simulación realista de textiles',
+              '🎨 Ajuste de iluminación y sombras',
+              '🔄 Optimización de calidad final',
+            ].map((step) => Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Text(
+                step,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                  height: 1.3,
+                ),
+              ),
+            )),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(
+              'Entendido',
+              style: TextStyle(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _retryProcessing() {
+    setState(() {
+      _hasError = false;
+      _errorMessage = null;
+      _progress = 0.0;
+      _currentStepIndex = 0;
+      _currentStatus = 'Iniciando procesamiento...';
+    });
+    
+    _progressController.reset();
+    _startProcessing();
+  }
+
+  void _contactSupport() {
+    // TODO: Implement support contact
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Función de soporte próximamente'),
+        backgroundColor: AppColors.info,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+}

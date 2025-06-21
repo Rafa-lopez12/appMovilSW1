@@ -194,109 +194,116 @@ class _UploadImageCardState extends State<UploadImageCard>
     );
   }
 
-  Widget _buildUploadContent() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        // Upload icon with animation
-        FadeInDown(
-          duration: const Duration(milliseconds: 600),
-          child: Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  AppColors.primary.withOpacity(0.1),
-                  AppColors.secondary.withOpacity(0.1),
+Widget _buildUploadContent() {
+  return Center(
+    child: SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Upload icon with animation
+          FadeInDown(
+            duration: const Duration(milliseconds: 600),
+            child: Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    AppColors.primary.withOpacity(0.1),
+                    AppColors.secondary.withOpacity(0.1),
+                  ],
+                ),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: AppColors.primary.withOpacity(0.2),
+                  width: 2,
+                ),
+              ),
+              child: Icon(
+                IconlyLight.image,
+                size: 36,
+                color: AppColors.primary,
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 20),
+          
+          // Title
+          FadeInUp(
+            duration: const Duration(milliseconds: 600),
+            delay: const Duration(milliseconds: 200),
+            child: Text(
+              AppStrings.chooseFromGallery,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 8),
+          
+          // Subtitle
+          FadeInUp(
+            duration: const Duration(milliseconds: 600),
+            delay: const Duration(milliseconds: 400),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Text(
+                'Selecciona una imagen de tu galería para encontrar productos similares',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textSecondary,
+                  height: 1.4,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 20),
+          
+          // Supported formats
+          FadeInUp(
+            duration: const Duration(milliseconds: 600),
+            delay: const Duration(milliseconds: 600),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.success.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    IconlyLight.tick_square,
+                    size: 16,
+                    color: AppColors.success,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'JPG, PNG, WEBP (max 5MB)',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.success,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                 ],
               ),
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: AppColors.primary.withOpacity(0.2),
-                width: 2,
-              ),
-            ),
-            child: Icon(
-              IconlyLight.image,
-              size: 36,
-              color: AppColors.primary,
             ),
           ),
-        ),
-        
-        const SizedBox(height: 20),
-        
-        // Title
-        FadeInUp(
-          duration: const Duration(milliseconds: 600),
-          delay: const Duration(milliseconds: 200),
-          child: Text(
-            AppStrings.chooseFromGallery,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
-            ),
-          ),
-        ),
-        
-        const SizedBox(height: 8),
-        
-        // Subtitle
-        FadeInUp(
-          duration: const Duration(milliseconds: 600),
-          delay: const Duration(milliseconds: 400),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Text(
-              'Selecciona una imagen de tu galería para encontrar productos similares',
-              style: TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-                height: 1.4,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ),
-        
-        const SizedBox(height: 20),
-        
-        // Supported formats
-        FadeInUp(
-          duration: const Duration(milliseconds: 600),
-          delay: const Duration(milliseconds: 600),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: AppColors.success.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  IconlyLight.tick_square,
-                  size: 16,
-                  color: AppColors.success,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'JPG, PNG, WEBP (max 5MB)',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.success,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+        ],
+      ),
+    ),
+  );
+}
+
 }

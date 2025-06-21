@@ -67,6 +67,39 @@ class TryonCameraWidget extends StatelessWidget {
     );
   }
 
+  Widget _buildGarmentPhotoGuide() {
+  return Positioned(
+    top: 200,
+    left: 50,
+    right: 50,
+    child: Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.7),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            IconlyBold.bag,
+            color: AppColors.primary,
+            size: 32,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Coloca la prenda en el centro del marco',
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.8),
+              fontSize: 12,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
   Widget _buildOverlayGuides() {
     return Positioned.fill(
       child: CustomPaint(

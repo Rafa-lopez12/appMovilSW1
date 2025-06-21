@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../data/models/ai_search/ai_search_result_model.dart';
@@ -12,6 +13,10 @@ class AiSearchService {
   // Headers base para las peticiones
   Future<Map<String, String>> _getHeaders() async {
     final token = await _authService.getStoredToken();
+    if (token == null || token.isEmpty) {
+      throw AiSearchException('No hay token de autenticación. Inicia sesión primero.');
+    }
+
     return {
       'Accept': 'application/json',
       'X-Tenant-ID': ApiConstants.tenantId,
@@ -22,6 +27,10 @@ class AiSearchService {
   // Headers para peticiones multipart
   Future<Map<String, String>> _getMultipartHeaders() async {
     final token = await _authService.getStoredToken();
+
+    if (token == null || token.isEmpty) {
+      throw AiSearchException('No hay token de autenticación. Inicia sesión primero.');
+    }
     return {
       'Accept': 'application/json',
       'X-Tenant-ID': ApiConstants.tenantId,
@@ -31,59 +40,132 @@ class AiSearchService {
   }
 
   /// Busca productos similares usando una imagen desde archivo
-  Future<AiSearchResultModel> searchByImageFile({
-    required File imageFile,
-    int limit = 10,
-    double minSimilarity = 0.3,
-  }) async {
-    try {
-      if (!validateImageFile(imageFile)) {
-        throw AiSearchException('Archivo de imagen no válido. Verificar formato y tamaño.');
-      }
-
-      // Crear la request multipart
-      var request = http.MultipartRequest(
-        'POST',
-        Uri.parse('${ApiConstants.baseUrl}/ai-search/search-by-image'),
-      );
-
-      // Añadir headers
-      request.headers.addAll(await _getMultipartHeaders());
-
-      // Añadir archivo
-      String fileName = imageFile.path.split('/').last;
-      var multipartFile = await http.MultipartFile.fromPath(
-        'image',
-        imageFile.path,
-        filename: fileName,
-      );
-      request.files.add(multipartFile);
-
-      // Añadir parámetros
-      request.fields['limit'] = limit.toString();
-      request.fields['minSimilarity'] = minSimilarity.toString();
-
-
-      // Enviar request
-      var streamedResponse = await request.send();
-      var response = await http.Response.fromStream(streamedResponse);
-
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final jsonData = json.decode(response.body);
-        return AiSearchResultModel.fromJson(jsonData);
-      } else {
-        final errorData = json.decode(response.body);
-        throw AiSearchException(
-          errorData['message'] ?? 'Error en la búsqueda por imagen',
-          response.statusCode,
-        );
-      }
-    } catch (e) {
-      if (e is AiSearchException) rethrow;
-      throw AiSearchException('Error de conexión: ${e.toString()}');
+Future<AiSearchResultModel> searchByImageFile({
+  required File imageFile,
+  int limit = 10,
+  double minSimilarity = 0.3,
+}) async {
+  try {
+    print('\n🚀 === INICIANDO BÚSQUEDA POR IMAGEN ===');
+    
+    if (!validateImageFile(imageFile)) {
+      throw AiSearchException('Archivo de imagen no válido. Verificar formato y tamaño.');
     }
+
+    // Verificar token
+    final token = await _authService.getStoredToken();
+    if (token == null || token.isEmpty) {
+      throw AiSearchException('No hay token de autenticación. Inicia sesión primero.');
+    }
+
+    final url = '${ApiConstants.baseUrl}${ApiConstants.aiSearchByImage}';
+    print('🌐 URL: $url');
+
+    // Crear request multipart
+    var request = http.MultipartRequest('POST', Uri.parse(url));
+
+    // Añadir headers
+    final headers = await _getMultipartHeaders();
+    request.headers.addAll(headers);
+
+    // ✅ CORRECCIÓN: Especificar contentType correctamente
+    String fileName = imageFile.path.split('/').last;
+    String extension = fileName.split('.').last.toLowerCase();
+    
+    // ✅ Determinar el MediaType correcto
+    MediaType contentType;
+    switch (extension) {
+      case 'jpg':
+      case 'jpeg':
+        contentType = MediaType('image', 'jpeg');
+        break;
+      case 'png':
+        contentType = MediaType('image', 'png');
+        break;
+      case 'webp':
+        contentType = MediaType('image', 'webp');
+        break;
+      default:
+        contentType = MediaType('image', 'jpeg'); // Default fallback
+    }
+    
+    print('🖼️ Archivo: $fileName');
+    print('📄 Extensión: $extension');
+    print('🏷️ Content-Type: ${contentType.mimeType}');
+
+    // ✅ Crear MultipartFile con contentType específico
+    var multipartFile = await http.MultipartFile.fromPath(
+      'image', // Nombre del campo que espera el backend
+      imageFile.path,
+      filename: fileName,
+      contentType: contentType, // ✅ ESTO ES LA CLAVE
+    );
+    
+    request.files.add(multipartFile);
+
+    // Añadir parámetros
+    request.fields['limit'] = limit.toString();
+    request.fields['minSimilarity'] = minSimilarity.toString();
+
+    print('🔢 Parámetros: limit=$limit, minSimilarity=$minSimilarity');
+    print('📤 Enviando request...');
+
+    // Enviar request
+    var streamedResponse = await request.send().timeout(
+      const Duration(seconds: 60),
+      onTimeout: () {
+        throw AiSearchException('Timeout: La búsqueda está tomando demasiado tiempo');
+      },
+    );
+    
+    var response = await http.Response.fromStream(streamedResponse);
+
+    print('📡 Status Code: ${response.statusCode}');
+    print('📄 Response Headers: ${response.headers}');
+    print('📄 Response Body: ${response.body}');
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      print('✅ Búsqueda exitosa');
+      final jsonData = json.decode(response.body);
+      return AiSearchResultModel.fromJson(jsonData);
+    } else {
+      print('❌ Error en respuesta');
+      
+      String errorMessage = 'Error en la búsqueda por imagen';
+      
+      try {
+        final errorData = json.decode(response.body);
+        errorMessage = errorData['message'] ?? errorData['error'] ?? errorMessage;
+      } catch (e) {
+        errorMessage = 'Error ${response.statusCode}: ${response.reasonPhrase ?? 'Unknown error'}';
+      }
+      
+      // Manejo específico de errores
+      switch (response.statusCode) {
+        case 400:
+          if (errorMessage.contains('file type')) {
+            errorMessage = 'Formato de archivo no válido. Usa JPG, PNG o WEBP.';
+          }
+          break;
+        case 401:
+          await _authService.clearAuthData();
+          errorMessage = 'Tu sesión ha expirado. Por favor, inicia sesión de nuevo.';
+          break;
+        case 413:
+          errorMessage = 'El archivo es demasiado grande. Máximo 5MB.';
+          break;
+      }
+      
+      throw AiSearchException(errorMessage, response.statusCode);
+    }
+  } catch (e) {
+    print('❌ Error en searchByImageFile: $e');
+    if (e is AiSearchException) rethrow;
+    throw AiSearchException('Error de conexión: ${e.toString()}');
+  } finally {
+    print('🏁 === FIN DE BÚSQUEDA POR IMAGEN ===\n');
   }
+}
 
   /// Busca productos similares usando una URL de imagen
   Future<AiSearchResultModel> searchByImageUrl({

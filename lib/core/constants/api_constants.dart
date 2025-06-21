@@ -3,7 +3,7 @@ class ApiConstants {
   ApiConstants._();
 
   // Base Configuration
-  static const String baseUrl = 'http://10.0.2.2:3000/api'; // CAMBIAR por tu IP
+  static const String baseUrl = 'https://81b4-189-28-75-79.ngrok-free.app/api'; // CAMBIAR por tu IP
   static const String tenantId = 'tienda-abc'; // CAMBIAR por tu tenant ID
   
   // Timeout configurations
