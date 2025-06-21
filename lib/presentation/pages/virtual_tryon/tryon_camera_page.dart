@@ -520,6 +520,8 @@ class _TryonCameraPageState extends State<TryonCameraPage>
     _showInfoSnackBar('Función de cambio de cámara próximamente');
   }
 
+  
+
   Future<void> _startTryon() async {
     if (_userImage == null) {
       _showErrorSnackBar('Se requiere una foto del usuario');
@@ -535,22 +537,22 @@ class _TryonCameraPageState extends State<TryonCameraPage>
     
     try {
       // Navigate to processing page
-      final result = await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ProcessingPage(
-            userImage: _userImage!,
-            garmentImageUrl: garmentImageUrl,
-            garmentImageFile: _garmentImage,
-            productId: widget.productId,
-          ),
-        ),
-      );
+      // final result = await Navigator.push(
+      //   context,
+      //   MaterialPageRoute(
+      //     builder: (context) => ProcessingPage(
+      //       // userImage: _userImage!,
+      //       // garmentImageUrl: garmentImageUrl,
+      //       // garmentImageFile: _garmentImage,
+      //       // productId: widget.productId,
+      //     ),
+      //   ),
+      // );
       
       // If processing completed successfully, pop this page too
-      if (result != null && mounted) {
-        Navigator.of(context).pop(result);
-      }
+      // if (result != null && mounted) {
+      //   Navigator.of(context).pop(result);
+      // }
     } catch (e) {
       _showErrorSnackBar('Error iniciando try-on: $e');
     }

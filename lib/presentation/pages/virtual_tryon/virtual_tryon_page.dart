@@ -12,10 +12,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_strings.dart';
 import '../../../core/utils/responsive_utils.dart';
 import '../../widgets/common/custom_button.dart';
-import '../../widgets/common/section_header.dart';
-import '../../widgets/virtual_tryon/tryon_camera_widget.dart';
 import '../../providers/virtual_tryon_provider.dart';
-import '../../providers/product_provider.dart';
 import 'tryon_camera_page.dart';
 
 class VirtualTryonPage extends StatefulWidget {
@@ -281,7 +278,7 @@ class _VirtualTryonPageState extends State<VirtualTryonPage>
             Consumer<VirtualTryonProvider>(
               builder: (context, tryonProvider, child) {
                 final canStartTryon = _userImage != null && _selectedProductImageUrl != null;
-                
+                print(tryonProvider.isCreatingSession);
                 return CustomButton(
                   text: tryonProvider.isCreatingSession 
                       ? 'Creando try-on...' 
@@ -608,37 +605,6 @@ class _VirtualTryonPageState extends State<VirtualTryonPage>
     );
   }
 
-  Future<void> _startVirtualTryon() async {
-    if (_userImage == null || _selectedProductImageUrl == null) return;
-    
-    final tryonProvider = Provider.of<VirtualTryonProvider>(context, listen: false);
-    
-    try {
-      // Navigate to processing page
-      final session = await Navigator.push<dynamic>(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ProcessingPage(
-            userImage: _userImage!,
-            garmentImageUrl: _selectedProductImageUrl!,
-            productId: widget.productId,
-          ),
-        ),
-      );
-      
-      if (session != null) {
-        // Navigate to result page
-        Navigator.pushNamed(
-          context,
-          '/tryon-result',
-          arguments: {'session': session},
-        );
-      }
-    } catch (e) {
-      _showErrorSnackBar('Error iniciando try-on: $e');
-    }
-  }
-
   Future<void> _quickTryon() async {
     HapticFeedback.mediumImpact();
     
@@ -653,6 +619,78 @@ class _VirtualTryonPageState extends State<VirtualTryonPage>
       ),
     );
   }
+
+Future<void> _startVirtualTryon() async {
+  if (_userImage == null || _selectedProductImageUrl == null) {
+    _showErrorSnackBar('Se requieren ambas imágenes para el try-on');
+    return;
+  }
+
+  try {
+    debugPrint('🚀 Iniciando Virtual Try-On - CREANDO SESIÓN');
+    debugPrint('📸 User Image Path: ${_userImage!.path}');
+    debugPrint('👕 Product Image URL: $_selectedProductImageUrl');
+    debugPrint('🆔 Product ID: ${widget.productId}');
+
+    // 🔥 PASO 1: CREAR LA SESIÓN AQUÍ EN VIRTUAL_TRYON_PAGE
+    final tryonProvider = Provider.of<VirtualTryonProvider>(context, listen: false);
+    
+    // Mostrar loading en el botón
+    // (El Consumer ya maneja esto con tryonProvider.isCreatingSession)
+    
+    dynamic session;
+    
+    if (_selectedProductImageUrl != null) {
+      // 🔥 LLAMAR AL ENDPOINT upload_and_create AQUÍ
+      session = await tryonProvider.createTryonWithUserImage(
+        userImage: _userImage!,
+        garmentImageUrl: _selectedProductImageUrl!,
+        productoId: widget.productId,
+        metadata: {
+          'source': 'virtual_tryon_page',
+          'timestamp': DateTime.now().toIso8601String(),
+        },
+      );
+    }
+    
+    if (session == null) {
+      _showErrorSnackBar('No se pudo crear la sesión de try-on');
+      return;
+    }
+    
+    debugPrint('✅ Sesión creada exitosamente: ${session.id}');
+    debugPrint('📊 Estado inicial: ${session.status}');
+    
+    // 🔥 PASO 2: NAVEGAR A PROCESSING PAGE CON LA SESIÓN YA CREADA
+    final result = await Navigator.push<dynamic>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProcessingPage(
+          sessionId: session.id,  // 👈 PASAR SOLO EL SESSION ID
+          initialSession: session, // 👈 PASAR LA SESIÓN INICIAL
+        ),
+      ),
+    );
+    
+    debugPrint('🔙 Retornó de ProcessingPage con: $result');
+    
+    // Manejar el resultado final
+    if (result != null && result.status == 'completed') {
+      debugPrint('✅ Try-on completado exitosamente');
+      _showSuccessSnackBar('Try-on completado exitosamente');
+    } else if (result != null && result.status == 'failed') {
+      debugPrint('❌ Try-on falló: ${result.errorMessage}');
+      _showErrorSnackBar('Try-on falló: ${result.errorMessage ?? "Error desconocido"}');
+    } else {
+      debugPrint('⚠️ Try-on cancelado o sin resultado');
+    }
+    
+  } catch (e) {
+    debugPrint('💥 Error en _startVirtualTryon: $e');
+    debugPrint('📍 Stack trace: ${StackTrace.current}');
+    _showErrorSnackBar('Error iniciando try-on: $e');
+  }
+}
 
 
 
