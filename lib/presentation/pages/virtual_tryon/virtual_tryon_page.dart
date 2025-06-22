@@ -1,4 +1,4 @@
-// lib/presentation/pages/virtual_tryon/virtual_tryon_page.dart
+// lib/presentation/pages/virtual_tryon/virtual_tryon_page.dart - VERSIÓN CORREGIDA
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:animate_do/animate_do.dart';
@@ -397,7 +397,6 @@ class _VirtualTryonPageState extends State<VirtualTryonPage>
     );
   }
 
-
   Widget _buildHowItWorks() {
     return FadeInUp(
       duration: const Duration(milliseconds: 1400),
@@ -564,26 +563,32 @@ class _VirtualTryonPageState extends State<VirtualTryonPage>
   }
 
   // Event handlers
+  // ⭐ MÉTODO PRINCIPAL CORREGIDO ⭐
   Future<void> _selectUserImage() async {
     try {
-      final result = await showModalBottomSheet<XFile?>(
-        context: context,
-        backgroundColor: Colors.transparent,
-        builder: (context) => _buildImageSourceBottomSheet(
-          title: 'Selecciona tu foto',
-          subtitle: 'Necesitamos una foto tuya para el try-on',
-        ),
+      debugPrint('🔄 Iniciando selección de imagen de usuario...');
+      
+      // 🔥 MÉTODO SIMPLE Y DIRECTO - SIN BOTTOM SHEET COMPLEJO
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
       );
       
-      if (result != null) {
+      if (image != null) {
+        debugPrint('✅ Imagen seleccionada: ${image.path}');
         setState(() {
-          _userImage = File(result.path);
+          _userImage = File(image.path);
         });
         
         HapticFeedback.lightImpact();
         _showSuccessSnackBar('Foto de usuario seleccionada');
+      } else {
+        debugPrint('❌ Selección de imagen cancelada');
       }
     } catch (e) {
+      debugPrint('💥 Error al seleccionar imagen: $e');
       _showErrorSnackBar('Error al seleccionar imagen: $e');
     }
   }
@@ -642,14 +647,11 @@ Future<void> _startVirtualTryon() async {
     
     if (_selectedProductImageUrl != null) {
       // 🔥 LLAMAR AL ENDPOINT upload_and_create AQUÍ
+      print(_userImage);
+      print(_selectedProductImageUrl);
       session = await tryonProvider.createTryonWithUserImage(
         userImage: _userImage!,
         garmentImageUrl: _selectedProductImageUrl!,
-        productoId: widget.productId,
-        metadata: {
-          'source': 'virtual_tryon_page',
-          'timestamp': DateTime.now().toIso8601String(),
-        },
       );
     }
     
@@ -691,9 +693,6 @@ Future<void> _startVirtualTryon() async {
     _showErrorSnackBar('Error iniciando try-on: $e');
   }
 }
-
-
-
 
   void _showHelpDialog() {
     showDialog(
@@ -755,172 +754,6 @@ Future<void> _startVirtualTryon() async {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildImageSourceBottomSheet({
-    required String title,
-    required String subtitle,
-  }) {
-    return Container(
-      margin: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Handle bar
-          Container(
-            margin: const EdgeInsets.only(top: 12),
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: AppColors.border,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          
-          // Header
-          Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textSecondary,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
-          
-          // Options
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Column(
-              children: [
-                _buildImageSourceOption(
-                  icon: IconlyLight.camera,
-                  title: 'Tomar foto',
-                  subtitle: 'Usa la cámara para tomar una nueva foto',
-                  onTap: () async {
-                    Navigator.of(context).pop();
-                    final image = await _imagePicker.pickImage(
-                      source: ImageSource.camera,
-                      maxWidth: 1024,
-                      maxHeight: 1024,
-                      imageQuality: 85,
-                    );
-                    if (image != null && mounted) {
-                      Navigator.of(context).pop(image);
-                    }
-                  },
-                ),
-                
-                const SizedBox(height: 16),
-                
-                _buildImageSourceOption(
-                  icon: IconlyLight.image,
-                  title: 'Seleccionar de galería',
-                  subtitle: 'Elige una foto existente de tu galería',
-                  onTap: () async {
-                    Navigator.of(context).pop();
-                    final image = await _imagePicker.pickImage(
-                      source: ImageSource.gallery,
-                      maxWidth: 1024,
-                      maxHeight: 1024,
-                      imageQuality: 85,
-                    );
-                    if (image != null && mounted) {
-                      Navigator.of(context).pop(image);
-                    }
-                  },
-                ),
-              ],
-            ),
-          ),
-          
-          const SizedBox(height: 24),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildImageSourceOption({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          border: Border.all(color: AppColors.border),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                icon,
-                color: AppColors.primary,
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(
-              IconlyLight.arrow_right_2,
-              color: AppColors.textSecondary,
-              size: 20,
-            ),
-          ],
-        ),
       ),
     );
   }

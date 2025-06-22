@@ -70,12 +70,11 @@ class VirtualTryonProvider extends ChangeNotifier {
       
       _updateUploadProgress(0.4);
       _updateUploadStatus('Enviando a servidor...');
-
+      print('desde el provider: $userImage');
+      print('desde el provider: $garmentImageUrl');
       final session = await _tryonService.createTryonWithUserImage(
         userImage: userImage,
         garmentImageUrl: garmentImageUrl,
-        productoId: productoId,
-        metadata: metadata,
       );
 
       _updateUploadProgress(0.8);

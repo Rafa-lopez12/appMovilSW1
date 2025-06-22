@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../constants/api_constants.dart';
 import '../../data/models/virtual_tryon/virtual_tryon_session_model.dart';
 import 'auth_service.dart';
+import 'package:http_parser/http_parser.dart';
 
 class VirtualTryonService {
   final AuthService _authService = AuthService();
@@ -25,47 +27,82 @@ class VirtualTryonService {
     };
   }
 
-  Future<VirtualTryonSessionModel?> createTryonWithUserImage({
-    required File userImage,
-    required String garmentImageUrl,
-    String? productoId,
-    Map<String, dynamic>? metadata,
-  }) async {
-    try {
-      final request = http.MultipartRequest(
-        'POST',
-        Uri.parse('${ApiConstants.baseUrl}${ApiConstants.tryonUpload}'),
-      );
+Future<VirtualTryonSessionModel?> createTryonWithUserImage({
+  required File userImage,
+  required String garmentImageUrl,
+  String? productoId,
+  Map<String, dynamic>? metadata,
+}) async {
+  try {
+    debugPrint('🚀 Iniciando createTryonWithUserImage...');
+    
+    final url = '${ApiConstants.baseUrl}${ApiConstants.tryonUpload}';
+    final request = http.MultipartRequest('POST', Uri.parse(url));
 
-      request.headers.addAll(await _getMultipartHeaders());
-      request.files.add(await http.MultipartFile.fromPath('images', userImage.path));
-      request.fields['garmentImageUrl'] = garmentImageUrl;
+    // Headers
+    request.headers.addAll(await _getMultipartHeaders());
 
-      if (productoId != null) {
-        request.fields['productoId'] = productoId;
-      }
-      if (metadata != null) {
-        request.fields['metadata'] = json.encode(metadata);
-      }
+    // 🔥 AGREGAR ARCHIVO CON MIME TYPE CORRECTO
+    final mimeType = _getMimeTypeFromPath(userImage.path);
+    debugPrint('📄 Detected MIME type: $mimeType');
+    
+    request.files.add(await http.MultipartFile.fromPath(
+      'images',
+      userImage.path,
+      contentType: MediaType.parse(mimeType), // 👈 Forzar MIME type correcto
+    ));
 
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = json.decode(response.body);
-        return VirtualTryonSessionModel.fromJson(data);
-      } else {
-        final errorData = json.decode(response.body);
-        throw VirtualTryonException(
-          errorData['message'] ?? 'Error creando try-on',
-          response.statusCode,
-        );
-      }
-    } catch (e) {
-      if (e is VirtualTryonException) rethrow;
-      throw VirtualTryonException('Error de conexión: ${e.toString()}');
+    // Campos
+    request.fields['image'] = garmentImageUrl;
+    if (productoId != null) {
+      request.fields['productoId'] = productoId;
     }
+    if (metadata != null) {
+      request.fields['metadata'] = json.encode(metadata);
+    }
+
+    debugPrint('📝 Fields: ${request.fields}');
+
+    // Enviar request
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+
+    debugPrint('📊 Response Status: ${response.statusCode}');
+    debugPrint('📄 Response Body: ${response.body}');
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final data = json.decode(response.body);
+      return VirtualTryonSessionModel.fromJson(data);
+    } else {
+      final errorData = json.decode(response.body);
+      throw VirtualTryonException(
+        errorData['message'] ?? 'Error creando try-on',
+        response.statusCode,
+      );
+    }
+  } catch (e) {
+    debugPrint('💥 Exception: $e');
+    if (e is VirtualTryonException) rethrow;
+    throw VirtualTryonException('Error de conexión: ${e.toString()}');
   }
+}
+
+String _getMimeTypeFromPath(String path) {
+  final extension = path.split('.').last.toLowerCase();
+  switch (extension) {
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg';
+    case 'png':
+      return 'image/png';
+    case 'gif':
+      return 'image/gif';
+    case 'webp':
+      return 'image/webp';
+    default:
+      return 'image/jpeg'; // Default
+  }
+}
 
   Future<VirtualTryonSessionModel?> createTryonFromUrls({
     required String userImageUrl,
