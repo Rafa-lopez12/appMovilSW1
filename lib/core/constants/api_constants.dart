@@ -65,6 +65,13 @@ class ApiConstants {
   // Size Endpoints
   static const String sizeBase = '/size';
   static const String sizes = '$sizeBase';
+
+  static const String recommendationBase = '/recommendations';
+  
+  // Rutas públicas
+  static const String publicBestsellers = '$recommendationBase/public/bestsellers';
+  static const String publicSimilar = '$recommendationBase/public/similar'; // + /{productId}
+  static const String publicNewArrivals = '$recommendationBase/public/new-arrivals';
   
   // Headers
   static const String contentTypeJson = 'application/json';
