@@ -1,4 +1,4 @@
-// lib/presentation/pages/catalog/catalog_page.dart
+// lib/presentation/pages/catalog/catalog_page.dart - CORREGIDO
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:animate_do/animate_do.dart';
@@ -34,7 +34,7 @@ class _CatalogPageState extends State<CatalogPage>
   bool get wantKeepAlive => true;
 
   final ScrollController _scrollController = ScrollController();
-  late TabController _tabController;
+  TabController? _tabController; // ✅ HACER NULLABLE
   
   bool _showAppBarShadow = false;
 
@@ -54,7 +54,7 @@ class _CatalogPageState extends State<CatalogPage>
   void dispose() {
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
-    _tabController.dispose();
+    _tabController?.dispose(); // ✅ VERIFICAR NULL
     super.dispose();
   }
 
@@ -74,6 +74,22 @@ class _CatalogPageState extends State<CatalogPage>
     }
   }
 
+  // ✅ MÉTODO PARA INICIALIZAR TABCONTROLLER SEGURO
+  void _initializeTabController(ProductProvider productProvider) {
+    if (productProvider.hasCategories) {
+      final newLength = productProvider.categories.length + 1;
+      
+      // Solo crear nuevo TabController si no existe o cambió el número de tabs
+      if (_tabController == null || _tabController!.length != newLength) {
+        _tabController?.dispose();
+        _tabController = TabController(
+          length: newLength, 
+          vsync: this,
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -82,14 +98,8 @@ class _CatalogPageState extends State<CatalogPage>
       backgroundColor: AppColors.background,
       body: Consumer<ProductProvider>(
         builder: (context, productProvider, child) {
-          // Initialize tab controller when categories are loaded
-          if (productProvider.hasCategories && 
-              (_tabController.length != productProvider.categories.length + 1)) {
-            _tabController = TabController(
-              length: productProvider.categories.length + 1, 
-              vsync: this
-            );
-          }
+          // ✅ INICIALIZAR TABCONTROLLER DE FORMA SEGURA
+          _initializeTabController(productProvider);
 
           return NestedScrollView(
             controller: _scrollController,
@@ -103,8 +113,8 @@ class _CatalogPageState extends State<CatalogPage>
                   child: _buildSearchSection(),
                 ),
                 
-                // Category Tabs
-                if (productProvider.hasCategories)
+                // Category Tabs - ✅ VERIFICAR QUE TABCONTROLLER EXISTE
+                if (productProvider.hasCategories && _tabController != null)
                   SliverToBoxAdapter(
                     child: _buildCategoryTabs(productProvider),
                   ),
@@ -196,6 +206,11 @@ class _CatalogPageState extends State<CatalogPage>
   }
 
   Widget _buildCategoryTabs(ProductProvider productProvider) {
+    // ✅ VERIFICACIÓN ADICIONAL
+    if (_tabController == null) {
+      return const SizedBox.shrink();
+    }
+
     final categories = ['Todos', ...productProvider.categories.map((c) => c.name)];
     
     return FadeInUp(
@@ -203,7 +218,7 @@ class _CatalogPageState extends State<CatalogPage>
       child: Container(
         height: 50,
         child: TabBar(
-          controller: _tabController,
+          controller: _tabController!,
           isScrollable: true,
           physics: const BouncingScrollPhysics(),
           padding: EdgeInsets.symmetric(
@@ -644,8 +659,9 @@ class _CatalogPageState extends State<CatalogPage>
   void _onClearFilters(ProductProvider productProvider) {
     HapticFeedback.lightImpact();
     productProvider.clearFilters();
-    if (_tabController.index != 0) {
-      _tabController.animateTo(0);
+    // ✅ VERIFICAR QUE TABCONTROLLER EXISTE ANTES DE USARLO
+    if (_tabController != null && _tabController!.index != 0) {
+      _tabController!.animateTo(0);
     }
   }
 

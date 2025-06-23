@@ -52,54 +52,59 @@ class VirtualTryonProvider extends ChangeNotifier {
     return DateTime.now().difference(_lastCacheUpdate!) < _cacheValidDuration;
   }
 
-  Future<VirtualTryonSessionModel?> createTryonWithUserImage({
-    required File userImage,
-    required String garmentImageUrl,
-    String? productoId,
-    Map<String, dynamic>? metadata,
-  }) async {
-    _setCreatingSession(true);
-    _clearError();
-    _updateUploadStatus('Preparando imágenes...');
+Future<VirtualTryonSessionModel?> createTryonWithUserImage({
+  required File userImage,
+  required String garmentImageUrl,
+  String? productoId,
+  String? category, // 🔥 NUEVO PARÁMETRO
+  Map<String, dynamic>? metadata,
+}) async {
+  _setCreatingSession(true);
+  _clearError();
+  _updateUploadStatus('Preparando imágenes...');
 
-    try {
-      _updateUploadProgress(0.2);
-      _updateUploadStatus('Convirtiendo imagen del usuario...');
-      
-      await Future.delayed(const Duration(milliseconds: 500));
-      
-      _updateUploadProgress(0.4);
-      _updateUploadStatus('Enviando a servidor...');
-      print('desde el provider: $userImage');
-      print('desde el provider: $garmentImageUrl');
-      final session = await _tryonService.createTryonWithUserImage(
-        userImage: userImage,
-        garmentImageUrl: garmentImageUrl,
-      );
+  try {
+    _updateUploadProgress(0.2);
+    _updateUploadStatus('Convirtiendo imagen del usuario...');
+    
+    await Future.delayed(const Duration(milliseconds: 500));
+    
+    _updateUploadProgress(0.4);
+    _updateUploadStatus('Enviando a servidor...');
+    
+    debugPrint('🏷️ Enviando category: $category');
+    
+    final session = await _tryonService.createTryonWithUserImage(
+      userImage: userImage,
+      garmentImageUrl: garmentImageUrl,
+      productoId: productoId,
+      category: category, // 🔥 PASAR CATEGORY
+      metadata: metadata,
+    );
 
-      _updateUploadProgress(0.8);
-      _updateUploadStatus('Try-on creado exitosamente');
+    _updateUploadProgress(0.8);
+    _updateUploadStatus('Try-on creado exitosamente');
+    
+    if (session != null) {
+      _currentSession = session;
+      _addSessionToCache(session);
       
-      if (session != null) {
-        _currentSession = session;
-        _addSessionToCache(session);
-        
-        if (session.status == 'processing' || session.status == 'pending') {
-          _startPolling(session.id);
-        }
-        
-        _updateUploadProgress(1.0);
+      if (session.status == 'processing' || session.status == 'pending') {
+        _startPolling(session.id);
       }
-
-      return session;
-    } catch (error) {
-      _handleError(error);
-      return null;
-    } finally {
-      _setCreatingSession(false);
-      _updateUploadProgress(0.0);
+      
+      _updateUploadProgress(1.0);
     }
+
+    return session;
+  } catch (error) {
+    _handleError(error);
+    return null;
+  } finally {
+    _setCreatingSession(false);
+    _updateUploadProgress(0.0);
   }
+}
 
   Future<VirtualTryonSessionModel?> createTryonFromUrls({
     required String userImageUrl,

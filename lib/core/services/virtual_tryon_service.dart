@@ -31,6 +31,7 @@ Future<VirtualTryonSessionModel?> createTryonWithUserImage({
   required File userImage,
   required String garmentImageUrl,
   String? productoId,
+  String? category, // 🔥 NUEVO PARÁMETRO
   Map<String, dynamic>? metadata,
 }) async {
   try {
@@ -49,7 +50,7 @@ Future<VirtualTryonSessionModel?> createTryonWithUserImage({
     request.files.add(await http.MultipartFile.fromPath(
       'images',
       userImage.path,
-      contentType: MediaType.parse(mimeType), // 👈 Forzar MIME type correcto
+      contentType: MediaType.parse(mimeType),
     ));
 
     // Campos
@@ -57,13 +58,21 @@ Future<VirtualTryonSessionModel?> createTryonWithUserImage({
     if (productoId != null) {
       request.fields['productoId'] = productoId;
     }
-    if (metadata != null) {
-      request.fields['metadata'] = json.encode(metadata);
+    
+    // 🔥 NUEVO: AGREGAR CATEGORY EN METADATA
+    final updatedMetadata = <String, dynamic>{
+      ...?metadata,
+      if (category != null) 'category': category,
+    };
+    
+    if (updatedMetadata.isNotEmpty) {
+      request.fields['metadata'] = json.encode(updatedMetadata);
     }
 
     debugPrint('📝 Fields: ${request.fields}');
+    debugPrint('🏷️ Category enviado: $category');
 
-    // Enviar request
+    // Resto del método permanece igual...
     final streamedResponse = await request.send();
     final response = await http.Response.fromStream(streamedResponse);
 

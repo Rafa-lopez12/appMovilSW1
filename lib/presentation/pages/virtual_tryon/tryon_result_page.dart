@@ -1,4 +1,4 @@
-// lib/presentation/pages/virtual_tryon/tryon_result_page.dart
+// lib/presentation/pages/virtual_tryon/tryon_result_page.dart - VERSIÓN CON PROPORCIONES CORREGIDAS
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:animate_do/animate_do.dart';
@@ -97,6 +97,7 @@ class _TryonResultPageState extends State<TryonResultPage>
     );
   }
 
+  // 🔥 MÉTODO CORREGIDO PARA MANTENER PROPORCIONES
   Widget _buildResultView() {
     return FadeIn(
       duration: const Duration(milliseconds: 800),
@@ -104,34 +105,54 @@ class _TryonResultPageState extends State<TryonResultPage>
         width: double.infinity,
         height: double.infinity,
         child: widget.session.hasResult
-            ? Image.network(
+            ? _buildProportionalImage(
                 widget.session.resultImageUrl,
-                fit: BoxFit.cover,
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return _buildLoadingPlaceholder();
-                },
-                errorBuilder: (context, error, stackTrace) {
-                  return _buildErrorPlaceholder();
-                },
+                'Resultado del try-on'
               )
             : _buildNoResultPlaceholder(),
       ),
     );
   }
 
+  // 🔥 NUEVO WIDGET PARA MANTENER PROPORCIONES
+  Widget _buildProportionalImage(String imageUrl, String label) {
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      color: Colors.black,
+      child: Center(
+        child: Image.network(
+          imageUrl,
+          // 🔥 CAMBIO PRINCIPAL: BoxFit.contain mantiene proporciones
+          fit: BoxFit.contain,
+          width: double.infinity,
+          height: double.infinity,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return _buildLoadingPlaceholder();
+          },
+          errorBuilder: (context, error, stackTrace) {
+            debugPrint('Error cargando imagen: $error');
+            return _buildErrorPlaceholder();
+          },
+        ),
+      ),
+    );
+  }
+
+  // 🔥 MÉTODO CORREGIDO PARA COMPARACIÓN ANTES/DESPUÉS
   Widget _buildBeforeAfterView() {
     return Row(
       children: [
-        // Before (original)
+        // Before (original) - Con proporciones mantenidas
         Expanded(
           child: Container(
             child: Stack(
               children: [
                 Positioned.fill(
-                  child: Image.network(
+                  child: _buildProportionalImage(
                     widget.session.userImageUrl,
-                    fit: BoxFit.cover,
+                    'Imagen original'
                   ),
                 ),
                 Positioned(
@@ -164,15 +185,15 @@ class _TryonResultPageState extends State<TryonResultPage>
           color: Colors.white,
         ),
         
-        // After (result)
+        // After (result) - Con proporciones mantenidas
         Expanded(
           child: Container(
             child: Stack(
               children: [
                 Positioned.fill(
-                  child: Image.network(
+                  child: _buildProportionalImage(
                     widget.session.resultImageUrl ?? '',
-                    fit: BoxFit.cover,
+                    'Resultado del try-on'
                   ),
                 ),
                 Positioned(

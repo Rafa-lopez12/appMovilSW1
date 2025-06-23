@@ -42,6 +42,7 @@ class _VirtualTryonPageState extends State<VirtualTryonPage>
   bool _showAppBarShadow = false;
   File? _userImage;
   String? _selectedProductImageUrl;
+  String? _selectedCategory;
   final ImagePicker _imagePicker = ImagePicker();
 
   @override
@@ -62,6 +63,9 @@ class _VirtualTryonPageState extends State<VirtualTryonPage>
     // Initialize with product if provided
     if (widget.productImageUrl != null) {
       _selectedProductImageUrl = widget.productImageUrl;
+    }
+    if (widget.productImageUrl != null) {
+      _selectedCategory = _detectCategoryFromUrl(widget.productImageUrl!);
     }
     
     // Start animations
@@ -630,28 +634,44 @@ Future<void> _startVirtualTryon() async {
     _showErrorSnackBar('Se requieren ambas imágenes para el try-on');
     return;
   }
-
   try {
     debugPrint('🚀 Iniciando Virtual Try-On - CREANDO SESIÓN');
-    debugPrint('📸 User Image Path: ${_userImage!.path}');
-    debugPrint('👕 Product Image URL: $_selectedProductImageUrl');
-    debugPrint('🆔 Product ID: ${widget.productId}');
-
-    // 🔥 PASO 1: CREAR LA SESIÓN AQUÍ EN VIRTUAL_TRYON_PAGE
-    final tryonProvider = Provider.of<VirtualTryonProvider>(context, listen: false);
+    String? detectedCategory;
     
-    // Mostrar loading en el botón
-    // (El Consumer ya maneja esto con tryonProvider.isCreatingSession)
+    if (_selectedProductImageUrl != null) {
+      final urlLower = _selectedProductImageUrl!.toLowerCase();
+      print('ESTA ES LA CATEGORIA: $urlLower');
+      if (urlLower.contains('jeans') || urlLower.contains('pantalon') || 
+          urlLower.contains('pants') || urlLower.contains('trouser')) {
+        detectedCategory = 'lower_body';
+      } else if (urlLower.contains('vestido') || urlLower.contains('dress')) {
+        detectedCategory = 'dresses';
+      } else {
+        detectedCategory = 'upper_body'; // Default
+      }
+    }
+
+    if (widget.productId != null && detectedCategory == null) {
+      detectedCategory = 'upper_body';
+    }
+    detectedCategory ??= 'upper_body';
+    debugPrint('🏷️ Categoría detectada: $detectedCategory');
+
+    final tryonProvider = Provider.of<VirtualTryonProvider>(context, listen: false);
     
     dynamic session;
     
     if (_selectedProductImageUrl != null) {
-      // 🔥 LLAMAR AL ENDPOINT upload_and_create AQUÍ
-      print(_userImage);
-      print(_selectedProductImageUrl);
       session = await tryonProvider.createTryonWithUserImage(
         userImage: _userImage!,
         garmentImageUrl: _selectedProductImageUrl!,
+        productoId: widget.productId,
+        category: detectedCategory, // 🔥 ENVIAR CATEGORY
+        metadata: {
+          'detectedCategory': detectedCategory,
+          'productImageUrl': _selectedProductImageUrl,
+          'source': 'virtual_tryon_page',
+        },
       );
     }
     
@@ -660,39 +680,42 @@ Future<void> _startVirtualTryon() async {
       return;
     }
     
-    debugPrint('✅ Sesión creada exitosamente: ${session.id}');
-    debugPrint('📊 Estado inicial: ${session.status}');
-    
-    // 🔥 PASO 2: NAVEGAR A PROCESSING PAGE CON LA SESIÓN YA CREADA
     final result = await Navigator.push<dynamic>(
       context,
       MaterialPageRoute(
         builder: (context) => ProcessingPage(
-          sessionId: session.id,  // 👈 PASAR SOLO EL SESSION ID
-          initialSession: session, // 👈 PASAR LA SESIÓN INICIAL
+          sessionId: session.id,
+          initialSession: session,
         ),
       ),
     );
     
-    debugPrint('🔙 Retornó de ProcessingPage con: $result');
-    
-    // Manejar el resultado final
     if (result != null && result.status == 'completed') {
       debugPrint('✅ Try-on completado exitosamente');
       _showSuccessSnackBar('Try-on completado exitosamente');
     } else if (result != null && result.status == 'failed') {
       debugPrint('❌ Try-on falló: ${result.errorMessage}');
       _showErrorSnackBar('Try-on falló: ${result.errorMessage ?? "Error desconocido"}');
-    } else {
-      debugPrint('⚠️ Try-on cancelado o sin resultado');
     }
     
   } catch (e) {
     debugPrint('💥 Error en _startVirtualTryon: $e');
-    debugPrint('📍 Stack trace: ${StackTrace.current}');
     _showErrorSnackBar('Error iniciando try-on: $e');
   }
 }
+
+  String _detectCategoryFromUrl(String imageUrl) {
+    final urlLower = imageUrl.toLowerCase();
+    print('ES LA CATEGORIA: $urlLower');
+    if (urlLower.contains('jeans') || urlLower.contains('pantalon') || 
+        urlLower.contains('pants') || urlLower.contains('trouser')) {
+      return 'lower_body';
+    } else if (urlLower.contains('vestido') || urlLower.contains('dress')) {
+      return 'dresses';
+    }
+    
+    return 'upper_body'; // Default
+  }
 
   void _showHelpDialog() {
     showDialog(

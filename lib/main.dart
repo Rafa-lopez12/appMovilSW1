@@ -14,6 +14,7 @@ import 'package:prueba/presentation/providers/ai_search_provider.dart';
 import 'package:prueba/presentation/providers/payment_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:prueba/presentation/providers/product_provider.dart';
+import 'package:prueba/presentation/providers/recommendation_provider.dart';
 import 'package:prueba/presentation/providers/virtual_tryon_provider.dart';
 
 import 'core/constants/app_colors.dart';
@@ -107,6 +108,10 @@ class TiendaVirtualApp extends StatelessWidget {
 
         ChangeNotifierProvider(
           create: (context) => VirtualTryonProvider(),
+        ),
+
+        ChangeNotifierProvider(
+          create: (context) => RecommendationProvider(),
         ),
         
         // Aquí irán más providers cuando los necesites:

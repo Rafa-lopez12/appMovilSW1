@@ -3,14 +3,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:prueba/presentation/pages/cart/cart_page.dart';
-import 'package:iconly/iconly.dart';
-
+import 'package:prueba/presentation/pages/profile/profile_page.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_strings.dart';
 import '../../widgets/common/custom_bottom_nav_bar.dart';
 import 'home_page.dart';
 import '../catalog/catalog_page.dart';
-import '../ai_search/ai_search_page.dart'; // ✅ IMPORTAR AI SEARCH
+import '../ai_search/ai_search_page.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({Key? key}) : super(key: key);
@@ -35,44 +33,13 @@ class _MainPageState extends State<MainPage> {
     super.dispose();
   }
 
-  // ✅ LISTA DE PÁGINAS ACTUALIZADA - Ahora con 5 páginas
+ 
   final List<Widget> _pages = [
-    const HomePage(),        // Índice 0
-    const CatalogPage(),     // Índice 1  
-    const AISearchPage(),    // Índice 2
-    const CartPage(),        // Índice 3
-    Container(               // Índice 4 - ProfilePage temporal
-      color: AppColors.background,
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              IconlyLight.profile,
-              size: 64,
-              color: AppColors.textSecondary,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Perfil',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Próximamente disponible',
-              style: TextStyle(
-                fontSize: 16,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    ),
+    const HomePage(),
+    const CatalogPage(),      
+    const AISearchPage(),  
+    const CartPage(),
+    const ProfilePage(),      
   ];
 
   void _onPageChanged(int index) {
