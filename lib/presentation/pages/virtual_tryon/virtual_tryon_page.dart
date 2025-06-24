@@ -18,11 +18,13 @@ import 'tryon_camera_page.dart';
 class VirtualTryonPage extends StatefulWidget {
   final String? productId;
   final String? productImageUrl;
+  final String? productCategory;
 
   const VirtualTryonPage({
     Key? key,
     this.productId,
     this.productImageUrl,
+    this.productCategory,
   }) : super(key: key);
 
   @override
@@ -64,8 +66,12 @@ class _VirtualTryonPageState extends State<VirtualTryonPage>
     if (widget.productImageUrl != null) {
       _selectedProductImageUrl = widget.productImageUrl;
     }
-    if (widget.productImageUrl != null) {
+    if (widget.productCategory != null) {
+      _selectedCategory = widget.productCategory;
+      debugPrint('🏷️ Categoría recibida desde producto: ${widget.productCategory}');
+    } else if (widget.productImageUrl != null) {
       _selectedCategory = _detectCategoryFromUrl(widget.productImageUrl!);
+      debugPrint('🏷️ Categoría detectada desde URL: $_selectedCategory');
     }
     
     // Start animations
@@ -634,28 +640,29 @@ Future<void> _startVirtualTryon() async {
     _showErrorSnackBar('Se requieren ambas imágenes para el try-on');
     return;
   }
+  
   try {
     debugPrint('🚀 Iniciando Virtual Try-On - CREANDO SESIÓN');
-    String? detectedCategory;
     
-    if (_selectedProductImageUrl != null) {
+    // 🔥 USAR CATEGORÍA YA DETECTADA O DETECTAR DESDE URL
+    String detectedCategory = _selectedCategory ?? 'upper_body';
+    print('ESTA ES LA CATEGORIA: $detectedCategory');
+    // Solo detectar desde URL si no tenemos categoría
+    if (_selectedCategory == null && _selectedProductImageUrl != null) {
       final urlLower = _selectedProductImageUrl!.toLowerCase();
-      print('ESTA ES LA CATEGORIA: $urlLower');
+      debugPrint('🔍 Detectando categoría desde URL: $urlLower');
+      
       if (urlLower.contains('jeans') || urlLower.contains('pantalon') || 
           urlLower.contains('pants') || urlLower.contains('trouser')) {
         detectedCategory = 'lower_body';
       } else if (urlLower.contains('vestido') || urlLower.contains('dress')) {
         detectedCategory = 'dresses';
       } else {
-        detectedCategory = 'upper_body'; // Default
+        detectedCategory = 'upper_body';
       }
     }
 
-    if (widget.productId != null && detectedCategory == null) {
-      detectedCategory = 'upper_body';
-    }
-    detectedCategory ??= 'upper_body';
-    debugPrint('🏷️ Categoría detectada: $detectedCategory');
+    debugPrint('🏷️ Categoría final para try-on: $detectedCategory');
 
     final tryonProvider = Provider.of<VirtualTryonProvider>(context, listen: false);
     
@@ -666,11 +673,12 @@ Future<void> _startVirtualTryon() async {
         userImage: _userImage!,
         garmentImageUrl: _selectedProductImageUrl!,
         productoId: widget.productId,
-        category: detectedCategory, // 🔥 ENVIAR CATEGORY
+        category: detectedCategory, // 🔥 ENVIAR CATEGORY CORRECTA
         metadata: {
           'detectedCategory': detectedCategory,
           'productImageUrl': _selectedProductImageUrl,
           'source': 'virtual_tryon_page',
+          'originalProductCategory': widget.productCategory, // Info adicional
         },
       );
     }

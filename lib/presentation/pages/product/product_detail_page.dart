@@ -960,13 +960,14 @@ Widget _buildBottomActions(dynamic product) {
 
   void _navigateToVirtualTryon(dynamic product) {
   HapticFeedback.lightImpact();
-  
+  String detectedCategory = _detectCategoryFromProduct(product);
   Navigator.push(
     context,
     MaterialPageRoute(
       builder: (context) => VirtualTryonPage(
         productId: product.id,
         productImageUrl: product.mainImage,
+        productCategory: detectedCategory,
       ),
     ),
   );
@@ -1001,6 +1002,78 @@ Widget _buildBottomActions(dynamic product) {
         borderRadius: BorderRadius.circular(12),
       ),
     ),
+  );
+}
+
+String _detectCategoryFromProduct(dynamic product) {
+  // Obtener nombre de categoría y subcategoría
+  final categoryName = product.category?.name?.toLowerCase() ?? '';
+  final subcategory = product.subcategory?.toLowerCase() ?? '';
+  final productName = product.name?.toLowerCase() ?? '';
+  
+  debugPrint('🏷️ Analizando producto:');
+  debugPrint('  - Categoría: $categoryName');
+  debugPrint('  - Subcategoría: $subcategory');
+  debugPrint('  - Nombre: $productName');
+  
+  // 🔥 DETECTAR ROPA INFERIOR (lower_body)
+  if (_isLowerBodyCategory(categoryName, subcategory, productName)) {
+    debugPrint('  ✅ Detectado como: lower_body');
+    return 'lower_body';
+  }
+  
+  // 🔥 DETECTAR VESTIDOS (dresses)
+  if (_isDressCategory(categoryName, subcategory, productName)) {
+    debugPrint('  ✅ Detectado como: dresses');
+    return 'dresses';
+  }
+  
+  // 🔥 DEFAULT: ROPA SUPERIOR (upper_body)
+  debugPrint('  ✅ Detectado como: upper_body (default)');
+  return 'upper_body';
+}
+
+bool _isLowerBodyCategory(String category, String subcategory, String productName) {
+  final lowerBodyKeywords = [
+    // Categorías
+    'pantalones', 'pants', 'trousers', 'bottoms', 'jeans',
+    'shorts', 'bermudas', 'faldas', 'skirts',
+    
+    // Subcategorías
+    'jeans', 'pantalon', 'pantalón', 'pants', 'trouser', 'trousers',
+    'shorts', 'bermuda', 'bermudas', 'falda', 'skirt', 'skirts',
+    'leggings', 'joggers', 'sweatpants', 'cargo',
+    
+    // Nombres de productos
+    'jean', 'pantalón', 'pantalon', 'short', 'falda',
+    'leggins', 'jogger', 'cargo', 'chino', 'palazzo',
+  ];
+  
+  return lowerBodyKeywords.any((keyword) => 
+    category.contains(keyword) || 
+    subcategory.contains(keyword) || 
+    productName.contains(keyword)
+  );
+}
+
+bool _isDressCategory(String category, String subcategory, String productName) {
+  final dressKeywords = [
+    // Categorías
+    'vestidos', 'dresses', 'dress',
+    'monos', 'jumpsuits', 'overalls',
+    
+    // Subcategorías
+    'vestido', 'dress', 'mono', 'jumpsuit', 'overall',
+    'maxi', 'midi', 'mini', 'cocktail',
+    
+    // Nombres de productos
+    'vestido', 'dress', 'mono', 'jumpsuit',
+  ];
+  
+  return dressKeywords.any((keyword) => 
+    category.contains(keyword) || 
+    subcategory.contains(keyword) || 
+    productName.contains(keyword)
   );
 }
 
